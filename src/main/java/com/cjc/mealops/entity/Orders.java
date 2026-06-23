@@ -19,12 +19,19 @@ public class Orders {
 
     public static final int UN_PAID = 0;
     public static final int PAID = 1;
+    public static final String TYPE_TAKEOUT = "TAKEOUT";
+    public static final String TYPE_DINE_IN = "DINE_IN";
 
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private String number;
     private Integer status;
+    private String orderType;
     private Long userId;
+    private Long diningSessionId;
+    private Long tableId;
+    private String tableName;
+    private Integer partySize;
     private Long addressBookId;
     private LocalDateTime orderTime;
     private LocalDateTime checkoutTime;

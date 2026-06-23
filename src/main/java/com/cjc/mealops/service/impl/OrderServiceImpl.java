@@ -82,6 +82,7 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
         Orders orders = new Orders();
         orders.setNumber(generateOrderNumber(userId));
         orders.setStatus(Orders.PENDING_PAYMENT);
+        orders.setOrderType(Orders.TYPE_TAKEOUT);
         orders.setUserId(userId);
         orders.setAddressBookId(addressBook.getId());
         orders.setOrderTime(now);

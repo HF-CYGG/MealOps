@@ -56,6 +56,28 @@ INSERT INTO address_book
 VALUES
   (7001, 101, '测试用户', '女', '13900000000', '110000', '北京市', '110100', '北京市', '110101', '东城区', '演示路 1 号 MealOps 实训楼 808', '学校', 1, NOW(), NOW());
 
+INSERT INTO dining_table
+  (id, table_no, table_name, capacity, status, current_session_id, create_time, update_time)
+VALUES
+  (8101, 'A01', 'A01 四人桌', 4, 'OCCUPIED', 8201, NOW(), NOW()),
+  (8102, 'A02', 'A02 四人桌', 4, 'AVAILABLE', NULL, NOW(), NOW()),
+  (8103, 'B01', 'B01 六人桌', 6, 'AVAILABLE', NULL, NOW(), NOW());
+
+INSERT INTO dining_session
+  (id, table_id, table_name, creator_user_id, party_size, status, opened_at, closed_at, create_time, update_time)
+VALUES
+  (8201, 8101, 'A01 四人桌', 101, 2, 'ACTIVE', NOW(), NULL, NOW(), NOW());
+
+INSERT INTO dining_session_member
+  (id, session_id, user_id, nickname, status, joined_at, left_at)
+VALUES
+  (8301, 8201, 101, '测试用户', 'ACTIVE', NOW(), NULL);
+
+INSERT INTO dining_cart_item
+  (id, session_id, creator_user_id, dish_id, setmeal_id, dish_flavor, name, image, number, amount, create_time, update_time)
+VALUES
+  (8401, 8201, 101, 3003, NULL, '标准', '番茄炒蛋', '/images/dish-tomato-egg.jpg', 1, 18.00, NOW(), NOW());
+
 INSERT INTO shopping_cart
   (id, user_id, dish_id, setmeal_id, dish_flavor, name, image, number, amount, create_time)
 VALUES
@@ -71,6 +93,11 @@ INSERT INTO order_detail
   (id, name, image, order_id, dish_id, setmeal_id, dish_flavor, number, amount)
 VALUES
   (9101, '经典单人餐', '/images/setmeal-single.jpg', 9001, NULL, 5001, NULL, 1, 38.00);
+
+INSERT INTO payment_order
+  (id, order_id, payment_no, amount, pay_method, status, paid_at, create_time, update_time)
+VALUES
+  (9201, 9001, 'PAY202606230001', 38.00, 1, 1, NOW(), NOW(), NOW());
 
 INSERT INTO operation_log
   (id, operation_user, operation_type, operation_method, operation_params, operation_result, operation_time, duration, ip)

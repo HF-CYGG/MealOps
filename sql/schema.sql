@@ -5,8 +5,13 @@ CREATE DATABASE IF NOT EXISTS reggie
 USE reggie;
 
 DROP TABLE IF EXISTS operation_log;
+DROP TABLE IF EXISTS payment_order;
 DROP TABLE IF EXISTS order_detail;
 DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS dining_cart_item;
+DROP TABLE IF EXISTS dining_session_member;
+DROP TABLE IF EXISTS dining_session;
+DROP TABLE IF EXISTS dining_table;
 DROP TABLE IF EXISTS address_book;
 DROP TABLE IF EXISTS shopping_cart;
 DROP TABLE IF EXISTS setmeal_dish;
@@ -190,11 +195,92 @@ CREATE TABLE address_book (
   CONSTRAINT fk_address_user FOREIGN KEY (user_id) REFERENCES user (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='地址簿';
 
+CREATE TABLE dining_table (
+  id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  table_no VARCHAR(32) NOT NULL COMMENT '桌号',
+  table_name VARCHAR(64) NOT NULL COMMENT '桌台名称',
+  capacity INT NOT NULL DEFAULT 1 COMMENT '容纳人数',
+  status VARCHAR(32) NOT NULL DEFAULT 'AVAILABLE' COMMENT 'AVAILABLE/OCCUPIED/RESERVED/DISABLED',
+  current_session_id BIGINT DEFAULT NULL COMMENT '当前堂食会话ID',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_dining_table_no (table_no),
+  KEY idx_dining_table_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='堂食桌台';
+
+CREATE TABLE dining_session (
+  id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  table_id BIGINT NOT NULL COMMENT '桌台ID',
+  table_name VARCHAR(64) NOT NULL COMMENT '桌台名称快照',
+  creator_user_id BIGINT NOT NULL COMMENT '开台用户ID',
+  party_size INT NOT NULL DEFAULT 1 COMMENT '就餐人数',
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/CLOSED',
+  opened_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '开台时间',
+  closed_at DATETIME DEFAULT NULL COMMENT '关台时间',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (id),
+  KEY idx_dining_session_table (table_id),
+  KEY idx_dining_session_status (status, opened_at),
+  KEY idx_dining_session_creator (creator_user_id),
+  CONSTRAINT fk_dining_session_table FOREIGN KEY (table_id) REFERENCES dining_table (id),
+  CONSTRAINT fk_dining_session_creator FOREIGN KEY (creator_user_id) REFERENCES user (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='堂食会话';
+
+CREATE TABLE dining_session_member (
+  id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  session_id BIGINT NOT NULL COMMENT '会话ID',
+  user_id BIGINT NOT NULL COMMENT '用户ID',
+  nickname VARCHAR(64) DEFAULT NULL COMMENT '成员昵称',
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/LEFT',
+  joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入时间',
+  left_at DATETIME DEFAULT NULL COMMENT '离开时间',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_session_member_user (session_id, user_id),
+  KEY idx_session_member_status (session_id, status),
+  CONSTRAINT fk_session_member_session FOREIGN KEY (session_id) REFERENCES dining_session (id) ON DELETE CASCADE,
+  CONSTRAINT fk_session_member_user FOREIGN KEY (user_id) REFERENCES user (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='堂食会话成员';
+
+CREATE TABLE dining_cart_item (
+  id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  session_id BIGINT NOT NULL COMMENT '会话ID',
+  creator_user_id BIGINT NOT NULL COMMENT '创建用户ID',
+  dish_id BIGINT DEFAULT NULL COMMENT '菜品ID',
+  setmeal_id BIGINT DEFAULT NULL COMMENT '套餐ID',
+  dish_flavor VARCHAR(255) DEFAULT NULL COMMENT '口味',
+  name VARCHAR(64) NOT NULL COMMENT '商品名称快照',
+  image VARCHAR(255) DEFAULT NULL COMMENT '图片快照',
+  number INT NOT NULL DEFAULT 1 COMMENT '数量',
+  amount DECIMAL(10,2) NOT NULL COMMENT '单价快照',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (id),
+  KEY idx_dining_cart_session (session_id),
+  KEY idx_dining_cart_creator (creator_user_id),
+  KEY idx_dining_cart_dish (dish_id),
+  KEY idx_dining_cart_setmeal (setmeal_id),
+  CONSTRAINT fk_dining_cart_session FOREIGN KEY (session_id) REFERENCES dining_session (id) ON DELETE CASCADE,
+  CONSTRAINT fk_dining_cart_creator FOREIGN KEY (creator_user_id) REFERENCES user (id),
+  CONSTRAINT fk_dining_cart_dish FOREIGN KEY (dish_id) REFERENCES dish (id),
+  CONSTRAINT fk_dining_cart_setmeal FOREIGN KEY (setmeal_id) REFERENCES setmeal (id),
+  CONSTRAINT chk_dining_cart_item CHECK (
+    (dish_id IS NOT NULL AND setmeal_id IS NULL) OR
+    (dish_id IS NULL AND setmeal_id IS NOT NULL)
+  )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='堂食购物车';
+
 CREATE TABLE orders (
   id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
   number VARCHAR(64) NOT NULL COMMENT '订单号',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '订单状态：1待付款，2待确认，3已确认，4派送中，5已完成，6已取消',
+  order_type VARCHAR(32) NOT NULL DEFAULT 'TAKEOUT' COMMENT 'TAKEOUT/DINE_IN',
   user_id BIGINT NOT NULL COMMENT '用户ID',
+  dining_session_id BIGINT DEFAULT NULL COMMENT '堂食会话ID',
+  table_id BIGINT DEFAULT NULL COMMENT '堂食桌台ID',
+  table_name VARCHAR(64) DEFAULT NULL COMMENT '堂食桌台快照',
+  party_size INT DEFAULT NULL COMMENT '堂食人数',
   address_book_id BIGINT DEFAULT NULL COMMENT '地址ID',
   order_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
   checkout_time DATETIME DEFAULT NULL COMMENT '结账时间',
@@ -220,8 +306,12 @@ CREATE TABLE orders (
   PRIMARY KEY (id),
   UNIQUE KEY uk_orders_number (number),
   KEY idx_orders_user (user_id),
+  KEY idx_orders_dining_session (dining_session_id),
+  KEY idx_orders_table (table_id),
   KEY idx_orders_status_time (status, order_time),
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES user (id),
+  CONSTRAINT fk_orders_dining_session FOREIGN KEY (dining_session_id) REFERENCES dining_session (id),
+  CONSTRAINT fk_orders_table FOREIGN KEY (table_id) REFERENCES dining_table (id),
   CONSTRAINT fk_orders_address FOREIGN KEY (address_book_id) REFERENCES address_book (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单';
 
@@ -230,6 +320,8 @@ CREATE TABLE order_detail (
   name VARCHAR(64) NOT NULL COMMENT '商品名称快照',
   image VARCHAR(255) DEFAULT NULL COMMENT '图片快照',
   order_id BIGINT NOT NULL COMMENT '订单ID',
+  creator_user_id BIGINT DEFAULT NULL COMMENT '堂食加购用户ID',
+  dining_cart_item_id BIGINT DEFAULT NULL COMMENT '堂食购物车明细ID',
   dish_id BIGINT DEFAULT NULL COMMENT '菜品ID',
   setmeal_id BIGINT DEFAULT NULL COMMENT '套餐ID',
   dish_flavor VARCHAR(255) DEFAULT NULL COMMENT '菜品口味',
@@ -237,12 +329,32 @@ CREATE TABLE order_detail (
   amount DECIMAL(10,2) NOT NULL COMMENT '金额',
   PRIMARY KEY (id),
   KEY idx_order_detail_order (order_id),
+  KEY idx_order_detail_creator (creator_user_id),
+  KEY idx_order_detail_dining_cart (dining_cart_item_id),
   KEY idx_order_detail_dish (dish_id),
   KEY idx_order_detail_setmeal (setmeal_id),
   CONSTRAINT fk_order_detail_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
+  CONSTRAINT fk_order_detail_creator FOREIGN KEY (creator_user_id) REFERENCES user (id),
   CONSTRAINT fk_order_detail_dish FOREIGN KEY (dish_id) REFERENCES dish (id),
   CONSTRAINT fk_order_detail_setmeal FOREIGN KEY (setmeal_id) REFERENCES setmeal (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单明细';
+
+CREATE TABLE payment_order (
+  id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  order_id BIGINT NOT NULL COMMENT '订单ID',
+  payment_no VARCHAR(64) NOT NULL COMMENT '支付单号',
+  amount DECIMAL(10,2) NOT NULL COMMENT '支付金额',
+  pay_method TINYINT NOT NULL DEFAULT 1 COMMENT '支付方式',
+  status TINYINT NOT NULL DEFAULT 0 COMMENT '0待支付，1已支付，2已取消',
+  paid_at DATETIME DEFAULT NULL COMMENT '支付时间',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_payment_order_no (payment_no),
+  UNIQUE KEY uk_payment_order_order (order_id),
+  KEY idx_payment_order_status (status, create_time),
+  CONSTRAINT fk_payment_order_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支付单';
 
 CREATE TABLE operation_log (
   id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',

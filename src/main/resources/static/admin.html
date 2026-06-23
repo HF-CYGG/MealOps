@@ -1,463 +1,183 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MealOps 管理端</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --bg: #f5f7fb;
-      --panel: #ffffff;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --line: #d8dee9;
-      --brand: #0f766e;
-      --brand-dark: #115e59;
-      --warn: #b45309;
-      --ok: #047857;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 18px 24px;
-      background: #102a43;
-      color: white;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 22px;
-      font-weight: 650;
-      letter-spacing: 0;
-    }
-    header span { color: #cbd5e1; font-size: 14px; }
-    main {
-      display: grid;
-      grid-template-columns: 320px minmax(0, 1fr);
-      gap: 16px;
-      padding: 16px;
-      max-width: 1440px;
-      margin: 0 auto;
-    }
-    section {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 16px;
-    }
-    .stack { display: grid; gap: 12px; align-content: start; }
-    h2 {
-      margin: 0 0 12px;
-      font-size: 17px;
-      font-weight: 650;
-    }
-    h3 {
-      margin: 0 0 10px;
-      font-size: 15px;
-      font-weight: 650;
-    }
-    label {
-      display: grid;
-      gap: 6px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-    input, select, textarea {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 9px 10px;
-      font: inherit;
-      color: var(--text);
-      background: white;
-    }
-    textarea {
-      min-height: 86px;
-      resize: vertical;
-      font-family: Consolas, "SFMono-Regular", monospace;
-    }
-    button {
-      border: 0;
-      border-radius: 6px;
-      padding: 9px 12px;
-      font: inherit;
-      color: white;
-      background: var(--brand);
-      cursor: pointer;
-    }
-    button:hover { background: var(--brand-dark); }
-    button.secondary {
-      color: var(--text);
-      background: #e5e7eb;
-    }
-    button.secondary:hover { background: #d1d5db; }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-    .status {
-      min-height: 22px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-    .status.ok { color: var(--ok); }
-    .status.warn { color: var(--warn); }
-    pre {
-      margin: 0;
-      min-height: 420px;
-      max-height: 680px;
-      overflow: auto;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px;
-      background: #0b1220;
-      color: #d1fae5;
-      font-size: 13px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .tabs {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .tabs button {
-      color: var(--text);
-      background: #eef2f7;
-    }
-    .tabs button.active {
-      color: white;
-      background: var(--brand);
-    }
-    .panel { display: none; }
-    .panel.active { display: grid; gap: 12px; }
-    @media (max-width: 900px) {
-      main { grid-template-columns: 1fr; }
-      .grid { grid-template-columns: 1fr; }
-      header { align-items: flex-start; flex-direction: column; }
-    }
-  </style>
+  <title>MealOps 后台运营管理端</title>
+  <link rel="stylesheet" href="./assets/css/mealops.css">
 </head>
 <body>
-<header>
-  <h1>MealOps 管理端</h1>
-  <span>默认账号：admin / 123456</span>
-</header>
+<div class="app-shell admin-shell" id="adminApp">
+  <aside class="admin-sidebar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">M</span>
+      <div>
+        <h1>MealOps</h1>
+        <p>运营管理端</p>
+      </div>
+    </div>
+    <nav class="admin-nav" aria-label="后台模块">
+      <button class="nav-item active" data-target="overviewPage" type="button">总览</button>
+      <button class="nav-item" data-target="categoryPage" type="button">分类管理</button>
+      <button class="nav-item" data-target="dishPage" type="button">菜品管理</button>
+      <button class="nav-item" data-target="setmealPage" type="button">套餐管理</button>
+      <button class="nav-item" data-target="tablePage" type="button">桌台会话</button>
+      <button class="nav-item" data-target="orderPage" type="button">订单管理</button>
+      <button class="nav-item" data-target="paymentPage" type="button">支付记录</button>
+      <button class="nav-item" data-target="logPage" type="button">操作日志</button>
+    </nav>
+    <div class="login-card" style="margin: 0; background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.14);">
+      <label style="color:#e8f1f6;">账号
+        <input id="adminUsername" autocomplete="username" value="admin">
+      </label>
+      <label style="color:#e8f1f6;">密码
+        <input id="adminPassword" type="password" autocomplete="current-password" value="123456">
+      </label>
+      <button id="adminLoginBtn" type="button">管理员登录</button>
+      <button class="secondary" id="adminLogoutBtn" type="button">退出登录</button>
+      <p class="muted" id="adminStatus">未登录</p>
+    </div>
+  </aside>
 
-<main>
-  <div class="stack">
-    <section>
-      <h2>登录</h2>
-      <div class="stack">
-        <label>服务地址
-          <input id="baseUrl" value="">
-        </label>
-        <label>用户名
-          <input id="username" value="admin" autocomplete="username">
-        </label>
-        <label>密码
-          <input id="password" value="123456" type="password" autocomplete="current-password">
-        </label>
-        <div class="actions">
-          <button id="loginBtn">登录</button>
-          <button class="secondary" id="logoutBtn">退出</button>
-          <button class="secondary" id="healthBtn">健康检查</button>
+  <main class="admin-main">
+    <header class="admin-topbar">
+      <div>
+        <h1 style="margin:0;font-size:22px;">运营工作台</h1>
+        <p class="muted" id="adminSubtitle">管理分类、菜品、套餐、订单与支付状态。</p>
+      </div>
+      <div class="action-row">
+        <button class="secondary" id="adminHealthBtn" type="button">健康检查</button>
+        <button id="adminRefreshBtn" type="button">刷新当前模块</button>
+      </div>
+    </header>
+
+    <section class="admin-page active" id="overviewPage">
+      <div class="metrics-grid" id="metricsGrid"></div>
+      <div class="data-panel">
+        <div class="panel-heading">
+          <h2>热销与待办</h2>
+          <button class="secondary" id="loadOverviewBtn" type="button">刷新总览</button>
         </div>
-        <div id="loginStatus" class="status">未登录</div>
+        <div id="overviewContent"></div>
       </div>
     </section>
 
-    <section>
-      <h2>快速查询</h2>
-      <div class="actions">
-        <button class="secondary" data-call="GET /category/list?type=1">菜品分类</button>
-        <button class="secondary" data-call="GET /category/list?type=2">套餐分类</button>
-        <button class="secondary" data-call="GET /dish/page?page=1&pageSize=10">菜品分页</button>
-        <button class="secondary" data-call="GET /setmeal/page?page=1&pageSize=10">套餐分页</button>
-        <button class="secondary" data-call="GET /logs/page?page=1&pageSize=10">操作日志</button>
+    <section class="admin-page" id="categoryPage">
+      <div class="data-panel">
+        <div class="table-toolbar">
+          <h2>分类管理</h2>
+          <div class="action-row">
+            <select id="categoryTypeFilter" aria-label="分类类型">
+              <option value="">全部分类</option>
+              <option value="1">菜品分类</option>
+              <option value="2">套餐分类</option>
+            </select>
+            <button id="newCategoryBtn" type="button">新增分类</button>
+            <button class="secondary" data-refresh="categories" type="button">刷新</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="categoryTable"></table></div>
       </div>
     </section>
+
+    <section class="admin-page" id="dishPage">
+      <div class="data-panel">
+        <div class="table-toolbar">
+          <h2>菜品管理</h2>
+          <div class="action-row">
+            <input id="dishKeyword" type="search" placeholder="搜索菜名">
+            <button id="newDishBtn" type="button">新增菜品</button>
+            <button class="secondary" data-refresh="dishes" type="button">刷新</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="dishTable"></table></div>
+      </div>
+    </section>
+
+    <section class="admin-page" id="setmealPage">
+      <div class="data-panel">
+        <div class="table-toolbar">
+          <h2>套餐管理</h2>
+          <div class="action-row">
+            <input id="setmealKeyword" type="search" placeholder="搜索套餐">
+            <button id="newSetmealBtn" type="button">新增套餐</button>
+            <button class="secondary" data-refresh="setmeals" type="button">刷新</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="setmealTable"></table></div>
+      </div>
+    </section>
+
+    <section class="admin-page" id="tablePage">
+      <div class="data-panel">
+        <div class="table-toolbar">
+          <h2>桌台会话</h2>
+          <button class="secondary" data-refresh="tables" type="button">刷新</button>
+        </div>
+        <div class="table-wrap"><table id="tableSessionTable"></table></div>
+      </div>
+    </section>
+
+    <section class="admin-page" id="orderPage">
+      <div class="data-panel">
+        <div class="table-toolbar">
+          <h2>订单管理</h2>
+          <div class="action-row">
+            <select id="orderStatusFilter" aria-label="订单状态">
+              <option value="">全部状态</option>
+              <option value="1">待付款</option>
+              <option value="2">待确认</option>
+              <option value="3">已确认</option>
+              <option value="4">派送中</option>
+              <option value="5">已完成</option>
+              <option value="6">已取消</option>
+            </select>
+            <button class="secondary" data-refresh="orders" type="button">刷新</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="orderTable"></table></div>
+      </div>
+    </section>
+
+    <section class="admin-page" id="paymentPage">
+      <div class="data-panel">
+        <div class="table-toolbar">
+          <h2>支付记录</h2>
+          <button class="secondary" data-refresh="payments" type="button">刷新</button>
+        </div>
+        <div class="table-wrap"><table id="paymentTable"></table></div>
+      </div>
+    </section>
+
+    <section class="admin-page" id="logPage">
+      <div class="data-panel">
+        <div class="table-toolbar">
+          <h2>操作日志</h2>
+          <button class="secondary" data-refresh="logs" type="button">刷新</button>
+        </div>
+        <div class="table-wrap"><table id="logTable"></table></div>
+      </div>
+    </section>
+
+    <details class="debug-panel">
+      <summary>折叠调试响应</summary>
+      <pre id="adminDebug">等待请求...</pre>
+    </details>
+  </main>
+</div>
+
+<div class="drawer-backdrop" id="adminDrawerBackdrop"></div>
+<aside class="drawer admin" id="adminDrawer" aria-label="编辑">
+  <div class="drawer-header">
+    <h2 id="adminDrawerTitle">编辑</h2>
+    <button class="secondary" data-close-drawer="#adminDrawer" type="button">关闭</button>
   </div>
+  <form class="form-grid" id="adminEditForm"></form>
+</aside>
 
-  <section>
-    <div class="tabs" role="tablist">
-      <button class="active" data-tab="categoryPanel">分类</button>
-      <button data-tab="dishPanel">菜品</button>
-      <button data-tab="setmealPanel">套餐</button>
-      <button data-tab="rawPanel">自定义</button>
-    </div>
-
-    <div id="categoryPanel" class="panel active">
-      <h2>分类维护</h2>
-      <div class="grid">
-        <label>类型
-          <select id="categoryType">
-            <option value="1">菜品分类</option>
-            <option value="2">套餐分类</option>
-          </select>
-        </label>
-        <label>名称
-          <input id="categoryName" value="新品推荐">
-        </label>
-        <label>排序
-          <input id="categorySort" type="number" value="99">
-        </label>
-      </div>
-      <div class="actions">
-        <button id="saveCategoryBtn">保存分类</button>
-        <button class="secondary" id="listCategoryBtn">刷新分类</button>
-      </div>
-    </div>
-
-    <div id="dishPanel" class="panel">
-      <h2>菜品维护</h2>
-      <div class="grid">
-        <label>名称
-          <input id="dishName" value="黑椒牛柳">
-        </label>
-        <label>分类ID
-          <input id="dishCategoryId" value="1001">
-        </label>
-        <label>价格
-          <input id="dishPrice" type="number" step="0.01" value="32.00">
-        </label>
-        <label>状态
-          <select id="dishStatus">
-            <option value="1">起售</option>
-            <option value="0">停售</option>
-          </select>
-        </label>
-      </div>
-      <label>描述
-        <textarea id="dishDescription">黑椒香气浓郁，适合午餐下饭。</textarea>
-      </label>
-      <label>口味 JSON
-        <textarea id="dishFlavors">[{"name":"辣度","value":"[\"不辣\",\"微辣\"]"}]</textarea>
-      </label>
-      <div class="actions">
-        <button id="saveDishBtn">保存菜品</button>
-        <button class="secondary" id="listDishBtn">刷新菜品</button>
-      </div>
-    </div>
-
-    <div id="setmealPanel" class="panel">
-      <h2>套餐维护</h2>
-      <div class="grid">
-        <label>名称
-          <input id="setmealName" value="商务午餐">
-        </label>
-        <label>分类ID
-          <input id="setmealCategoryId" value="2001">
-        </label>
-        <label>价格
-          <input id="setmealPrice" type="number" step="0.01" value="45.00">
-        </label>
-        <label>状态
-          <select id="setmealStatus">
-            <option value="1">起售</option>
-            <option value="0">停售</option>
-          </select>
-        </label>
-      </div>
-      <label>描述
-        <textarea id="setmealDescription">一荤一素一饮品，适合工作日午餐。</textarea>
-      </label>
-      <label>套餐菜品 JSON
-        <textarea id="setmealDishes">[{"dishId":3001,"name":"宫保鸡丁","price":28.00,"copies":1}]</textarea>
-      </label>
-      <div class="actions">
-        <button id="saveSetmealBtn">保存套餐</button>
-        <button class="secondary" id="listSetmealBtn">刷新套餐</button>
-      </div>
-    </div>
-
-    <div id="rawPanel" class="panel">
-      <h2>自定义请求</h2>
-      <div class="grid">
-        <label>方法
-          <select id="rawMethod">
-            <option>GET</option>
-            <option>POST</option>
-            <option>PUT</option>
-            <option>DELETE</option>
-          </select>
-        </label>
-        <label>路径
-          <input id="rawPath" value="/health">
-        </label>
-      </div>
-      <label>JSON Body
-        <textarea id="rawBody">{}</textarea>
-      </label>
-      <div class="actions">
-        <button id="rawSendBtn">发送</button>
-      </div>
-    </div>
-
-    <h3>响应</h3>
-    <pre id="output">等待请求...</pre>
-  </section>
-</main>
-
-<script>
-  const $ = (id) => document.getElementById(id);
-  const tokenKey = "mealops-admin-token";
-  const baseUrlInput = $("baseUrl");
-  const output = $("output");
-  const loginStatus = $("loginStatus");
-
-  baseUrlInput.value = window.location.origin;
-  let token = localStorage.getItem(tokenKey) || "";
-  renderLoginStatus();
-
-  function baseUrl() {
-    return baseUrlInput.value.replace(/\/$/, "");
-  }
-
-  function renderLoginStatus() {
-    loginStatus.textContent = token ? "已保存 token" : "未登录";
-    loginStatus.className = token ? "status ok" : "status";
-  }
-
-  function show(value) {
-    output.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-  }
-
-  function parseJson(text, fallback) {
-    if (!text.trim()) return fallback;
-    try {
-      return JSON.parse(text);
-    } catch (error) {
-      throw new Error("JSON 格式错误：" + error.message);
-    }
-  }
-
-  async function request(method, path, body) {
-    const headers = { "Accept": "application/json" };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
-    if (token) {
-      headers.Authorization = "Bearer " + token;
-      headers.token = token;
-    }
-    const response = await fetch(baseUrl() + path, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body)
-    });
-    const text = await response.text();
-    const data = text ? parseJson(text, text) : null;
-    if (!response.ok) {
-      throw new Error(response.status + " " + response.statusText + "\n" + JSON.stringify(data, null, 2));
-    }
-    return data;
-  }
-
-  async function run(label, method, path, body) {
-    show("请求中：" + label);
-    try {
-      const data = await request(method, path, body);
-      show(data);
-      return data;
-    } catch (error) {
-      show(error.message);
-      throw error;
-    }
-  }
-
-  document.querySelectorAll(".tabs button").forEach((button) => {
-    button.addEventListener("click", () => {
-      document.querySelectorAll(".tabs button").forEach((item) => item.classList.remove("active"));
-      document.querySelectorAll(".panel").forEach((item) => item.classList.remove("active"));
-      button.classList.add("active");
-      $(button.dataset.tab).classList.add("active");
-    });
-  });
-
-  document.querySelectorAll("[data-call]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const [method, path] = button.dataset.call.split(" ");
-      run(button.textContent, method, path);
-    });
-  });
-
-  $("loginBtn").addEventListener("click", async () => {
-    const data = await run("管理员登录", "POST", "/employee/login", {
-      username: $("username").value,
-      password: $("password").value
-    });
-    token = data && data.data && (data.data.token || data.data);
-    if (token && typeof token === "object") token = token.token || token.jwt || "";
-    if (token) localStorage.setItem(tokenKey, token);
-    renderLoginStatus();
-  });
-
-  $("logoutBtn").addEventListener("click", async () => {
-    try {
-      await run("管理员退出", "POST", "/employee/logout", {});
-    } finally {
-      token = "";
-      localStorage.removeItem(tokenKey);
-      renderLoginStatus();
-    }
-  });
-
-  $("healthBtn").addEventListener("click", () => run("健康检查", "GET", "/health"));
-
-  $("saveCategoryBtn").addEventListener("click", () => run("保存分类", "POST", "/category", {
-    type: Number($("categoryType").value),
-    name: $("categoryName").value,
-    sort: Number($("categorySort").value)
-  }));
-
-  $("listCategoryBtn").addEventListener("click", () =>
-    run("分类列表", "GET", "/category/list?type=" + encodeURIComponent($("categoryType").value)));
-
-  $("saveDishBtn").addEventListener("click", () => run("保存菜品", "POST", "/dish", {
-    name: $("dishName").value,
-    categoryId: $("dishCategoryId").value,
-    price: Number($("dishPrice").value),
-    description: $("dishDescription").value,
-    status: Number($("dishStatus").value),
-    flavors: parseJson($("dishFlavors").value, [])
-  }));
-
-  $("listDishBtn").addEventListener("click", () => run("菜品分页", "GET", "/dish/page?page=1&pageSize=10"));
-
-  $("saveSetmealBtn").addEventListener("click", () => run("保存套餐", "POST", "/setmeal", {
-    name: $("setmealName").value,
-    categoryId: $("setmealCategoryId").value,
-    price: Number($("setmealPrice").value),
-    description: $("setmealDescription").value,
-    status: Number($("setmealStatus").value),
-    setmealDishes: parseJson($("setmealDishes").value, [])
-  }));
-
-  $("listSetmealBtn").addEventListener("click", () => run("套餐分页", "GET", "/setmeal/page?page=1&pageSize=10"));
-
-  $("rawSendBtn").addEventListener("click", () => {
-    const method = $("rawMethod").value;
-    const path = $("rawPath").value.startsWith("/") ? $("rawPath").value : "/" + $("rawPath").value;
-    const body = method === "GET" ? undefined : parseJson($("rawBody").value, {});
-    run("自定义请求", method, path, body);
-  });
-</script>
+<script src="./assets/js/api.js" defer></script>
+<script src="./assets/js/store.js" defer></script>
+<script src="./assets/js/ui.js" defer></script>
+<script src="./assets/js/admin-app.js" defer></script>
 </body>
 </html>

@@ -28,6 +28,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/webjars/**",
                         "/favicon.ico",
                         "/error",
+                        "/",
+                        "/*.html",
+                        "/assets/**",
                         "/static/**",
                         "/css/**",
                         "/js/**",
@@ -40,5 +43,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addResourceLocations("classpath:/META-INF/resources/webjars/swagger-ui/");
         registry.addResourceHandler("/static/**")
                 .addResourceLocations("classpath:/static/");
+        registry.addResourceHandler("/assets/**")
+                .addResourceLocations("classpath:/static/assets/");
     }
 }
