@@ -1,0 +1,16 @@
+target/
+logs/
+uploads/
+.m2/
+.m2repo/
+.m2repo*/
+
+.idea/
+.vscode/
+*.iml
+
+.env
+*.log
+*.tmp
+
+.mvn/wrapper/maven-wrapper.jar
