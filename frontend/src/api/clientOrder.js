@@ -24,7 +24,7 @@ export const submitOrder = (data) => {
  */
 export const getHistoryOrders = (params) => {
   return request({
-    url: '/order/historyOrders',
+    url: '/order/userPage',
     method: 'get',
     params
   })
@@ -37,7 +37,7 @@ export const getHistoryOrders = (params) => {
  */
 export const getOrderDetail = (id) => {
   return request({
-    url: `/order/orderDetail/${id}`,
+    url: `/order/${id}`,
     method: 'get'
   })
 }

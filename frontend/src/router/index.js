@@ -25,7 +25,7 @@ const routes = [
       {
         path: 'home',
         name: 'Home',
-        component: () => import('@/views/Home.vue'),
+        component: () => import('@/views/admin/home/Index.vue'),
         meta: { title: '首页' }
       },
       {
@@ -70,8 +70,14 @@ const routes = [
   {
     path: '/client',
     component: ClientLayout,
-    redirect: '/client/menu',
+    redirect: '/client/home',
     children: [
+      {
+        path: 'home',
+        name: 'ClientHome',
+        component: () => import('@/views/client/home/Index.vue'),
+        meta: { title: '欢迎光临' }
+      },
       {
         path: 'menu',
         name: 'ClientMenu',
@@ -101,7 +107,7 @@ const router = createRouter({
 })
 
 // 白名单路由
-const whiteList = ['/login', '/client/login']
+const whiteList = ['/login', '/client/login', '/client/home', '/client/menu', '/client/order/submit']
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
@@ -119,7 +125,7 @@ router.beforeEach((to, from, next) => {
 
     if (hasClientToken) {
       if (to.path === '/client/login') {
-        next({ path: '/client/menu' })
+        next({ path: '/client/home' })
       } else {
         next()
       }

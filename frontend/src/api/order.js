@@ -6,7 +6,7 @@ import request from '@/utils/request'
 // 获取订单列表 (分页)
 export const getOrderPage = (params) => {
   return request({
-    url: '/order/conditionSearch',
+    url: '/order/page',
     method: 'get',
     params
   })
@@ -16,7 +16,7 @@ export const getOrderPage = (params) => {
 export const cancelOrder = (data) => {
   return request({
     url: '/order/cancel',
-    method: 'put',
+    method: 'post',
     data
   })
 }

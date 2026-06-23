@@ -50,12 +50,16 @@
       <el-table-column prop="image" label="图片" align="center">
         <template #default="scope">
           <el-image 
-            style="width: 50px; height: 50px; border-radius: 4px;" 
-            :src="scope.row.image" 
+            class="setmeal-thumb"
+            :src="resolveImageUrl(scope.row.image)" 
             fit="cover"
-            :preview-src-list="[scope.row.image]"
+            :preview-src-list="[resolveImageUrl(scope.row.image)]"
             preview-teleported
-          />
+          >
+            <template #error>
+              <img class="setmeal-thumb-fallback" :src="FALLBACK_DISH_IMAGE" alt="套餐图片占位" />
+            </template>
+          </el-image>
         </template>
       </el-table-column>
       <el-table-column prop="categoryName" label="套餐分类" align="center" />
@@ -153,6 +157,7 @@ import {
   getSetmealById
 } from '@/api/setmeal'
 import { getCategoryList } from '@/api/category'
+import { FALLBACK_DISH_IMAGE, resolveImageUrl } from '@/utils/image'
 
 const searchForm = reactive({
   name: '',
@@ -391,5 +396,22 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 页面特有样式（通用样式已在全局 style.css 中定义） */
+.setmeal-thumb,
+.setmeal-thumb-fallback {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  :deep(.el-table) {
+    min-width: 860px;
+  }
+
+  :deep(.el-table__inner-wrapper) {
+    overflow-x: auto;
+  }
+}
 </style>

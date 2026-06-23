@@ -1,9 +1,22 @@
-/* 基础简约样式 */
+/* 基础简约样式 - 消费级 App 高级感 */
 :root {
-  --primary-color: #409eff;
-  --text-color: #303133;
-  --bg-color: #f5f7fa;
-  --border-color: #dcdfe6;
+  /* 深黑金高级配色 */
+  --primary-color: #1c1c1e; /* 深灰黑 */
+  --accent-color: #d4a373;  /* 琥珀金 */
+  --text-color: #2c2c2e;
+  --text-color-secondary: #8e8e93;
+  --bg-color: #f5f5f7;      /* 呼吸感留白背景 */
+  --border-color: #e5e5ea;
+
+  /* Element-Plus 全局定制变量 */
+  --el-color-primary: var(--primary-color);
+  --el-color-success: var(--accent-color);
+  --el-color-warning: #e6a23c;
+  --el-color-danger: #ff3b30;
+  --el-border-radius-base: 12px;
+  --el-border-radius-small: 8px;
+  --el-border-radius-round: 24px;
+  --el-bg-color-page: var(--bg-color);
 }
 
 * {
@@ -12,18 +25,26 @@
   padding: 0;
 }
 
+html,
 body {
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  /* 调整字体排版（字重对比、呼吸感留白） */
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   color: var(--text-color);
   background-color: var(--bg-color);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
 }
 
 #app {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -40,26 +61,159 @@ ul, li {
 /* 管理端通用页面布局样式 */
 .page-container {
   background-color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
 }
 
 .header-action {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .action-buttons {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .pagination-container {
-  margin-top: 20px;
+  margin-top: 24px;
   display: flex;
   justify-content: flex-end;
 }
 
+/* 路由淡入/推入动画 - 优雅的贝塞尔曲线 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* 隐藏部分边框并使用大圆角 */
+.el-card {
+  border: none !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.03) !important;
+  background-color: #fff !important;
+}
+
+/* 优化表格 (el-table) */
+.el-table {
+  --el-table-border-color: transparent !important;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.el-table th.el-table__cell {
+  background-color: #f5f5f7 !important;
+  color: var(--text-color-secondary) !important;
+  font-weight: 600;
+  border-bottom: none !important;
+  padding: 16px 0 !important;
+}
+
+.el-table td.el-table__cell {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+  padding: 16px 0 !important;
+  transition: background-color 0.3s ease;
+}
+
+.el-table__row:hover td.el-table__cell {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+/* 增加数据行的呼吸感 */
+.el-table__inner-wrapper::before {
+  display: none !important;
+}
+
+.el-button {
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.el-button:active {
+  transform: scale(0.94);
+}
+
+.el-drawer__body {
+  padding: 0 !important;
+}
+
+/* 弹层毛玻璃效果 */
+.el-overlay {
+  backdrop-filter: blur(8px);
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.el-dialog {
+  border-radius: 24px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px;
+    border-radius: 18px;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .header-action {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .header-action .el-form {
+    width: 100%;
+  }
+
+  .header-action .el-form--inline .el-form-item {
+    display: flex;
+    margin-right: 0;
+    width: 100%;
+  }
+
+  .header-action .el-form-item__content,
+  .header-action .el-input,
+  .header-action .el-select {
+    width: 100%;
+  }
+
+  .action-buttons {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .action-buttons .el-button {
+    flex: 1 1 140px;
+    min-height: 44px;
+  }
+
+  .pagination-container {
+    justify-content: center;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .page-container .el-table {
+    min-width: 760px;
+  }
+
+  .el-dialog {
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px);
+    margin: 5vh auto !important;
+  }
+}

@@ -84,7 +84,7 @@
             @click="handleComplete(scope.row)"
           >完成</el-button>
           <el-button 
-            v-if="[1, 2, 3, 4].includes(scope.row.status)" 
+            v-if="[1, 2, 3, 4, 5].includes(scope.row.status)" 
             type="danger" 
             link 
             @click="handleCancel(scope.row)"

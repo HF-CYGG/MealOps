@@ -3,7 +3,7 @@
   展示用户的历史订单列表及详情，支持再来一单功能
 -->
 <template>
-  <div class="history-order-container">
+  <div class="history-order-container fade-slide-enter-active">
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
@@ -11,8 +11,29 @@
         </div>
       </template>
 
-      <div class="order-list" v-loading="loading">
-        <el-card v-for="order in orderList" :key="order.id" class="order-item" shadow="hover">
+      <!-- 订单列表 -->
+      <el-skeleton :loading="loading" animated :count="3">
+        <template #template>
+          <div style="padding: 20px; margin-bottom: 20px; border: 1px solid #eee; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+              <el-skeleton-item variant="text" style="width: 30%" />
+              <el-skeleton-item variant="text" style="width: 20%" />
+            </div>
+            <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+              <el-skeleton-item variant="image" style="width: 60px; height: 60px; border-radius: 4px;" />
+              <div style="flex: 1;">
+                <el-skeleton-item variant="p" style="width: 80%" />
+                <el-skeleton-item variant="p" style="width: 60%" />
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end;">
+              <el-skeleton-item variant="button" style="width: 80px;" />
+            </div>
+          </div>
+        </template>
+        <template #default>
+          <div class="order-list">
+            <el-card v-for="order in orderList" :key="order.id" class="order-item" shadow="hover">
           <div class="order-header">
             <span class="order-time">下单时间: {{ order.orderTime }}</span>
             <span class="order-status" :class="statusClass(order.status)">
@@ -50,6 +71,8 @@
           />
         </div>
       </div>
+      </template>
+      </el-skeleton>
     </el-card>
 
     <!-- 订单详情弹窗 -->
@@ -218,7 +241,7 @@ const handleRepetition = async (id) => {
 }
 
 .text-warning { color: #E6A23C; }
-.text-primary { color: #409EFF; }
+.text-primary { color: var(--primary-color); }
 .text-success { color: #67C23A; }
 .text-info { color: #909399; }
 
@@ -260,7 +283,7 @@ const handleRepetition = async (id) => {
 .detail-section h4 {
   margin: 0 0 10px 0;
   color: #333;
-  border-left: 3px solid #409EFF;
+  border-left: 3px solid var(--primary-color);
   padding-left: 10px;
 }
 
@@ -279,5 +302,42 @@ const handleRepetition = async (id) => {
   color: #f56c6c;
   font-size: 20px;
   font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .history-order-container {
+    max-width: none;
+  }
+
+  .order-header,
+  .order-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .order-amount {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .order-footer {
+    flex-direction: column;
+  }
+
+  .order-footer .el-button {
+    width: 100%;
+    min-height: 44px;
+    margin-left: 0;
+  }
+
+  .detail-section {
+    overflow-x: auto;
+  }
+
+  .detail-section .el-table {
+    min-width: 420px;
+  }
 }
 </style>

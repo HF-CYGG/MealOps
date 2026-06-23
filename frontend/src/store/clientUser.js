@@ -10,6 +10,14 @@ export const useClientUserStore = defineStore('clientUser', () => {
   const token = ref(localStorage.getItem('clientToken') || '')
   // 用户信息
   const userInfo = ref(JSON.parse(localStorage.getItem('clientUserInfo') || '{}'))
+  // 用餐人数上下文
+  const guestCount = ref(localStorage.getItem('guestCount') || '')
+
+  // 设置用餐人数
+  const setGuestCount = (count) => {
+    guestCount.value = count
+    localStorage.setItem('guestCount', count)
+  }
 
   // 设置 token
   const setToken = (newToken) => {
@@ -34,8 +42,10 @@ export const useClientUserStore = defineStore('clientUser', () => {
   return {
     token,
     userInfo,
+    guestCount,
     setToken,
     setUserInfo,
+    setGuestCount,
     clearUserInfo
   }
 })

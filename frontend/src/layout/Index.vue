@@ -12,9 +12,6 @@
       <el-menu
         :default-active="activeMenu"
         class="el-menu-vertical"
-        background-color="#304156"
-        text-color="#bfcbd9"
-        active-text-color="#409EFF"
         router
       >
         <el-menu-item index="/">
@@ -97,6 +94,16 @@ const userInfo = computed(() => userStore.userInfo)
 
 // 当前激活的菜单
 const activeMenu = computed(() => {
+  // 如果是首页（精确匹配 /），或者带 /home 的路径
+  if (route.path === '/' || route.path === '/home') return '/'
+  
+  // 对于其他路由（例如 /employee, /category 等）
+  // 提取一级路径，比如 /employee/add 也高亮 /employee
+  const pathParts = route.path.split('/')
+  if (pathParts.length > 1 && pathParts[1]) {
+    return '/' + pathParts[1]
+  }
+  
   return route.path
 })
 
@@ -135,24 +142,58 @@ const handleCommand = async (command) => {
 .layout-container {
   height: 100vh;
   width: 100%;
+  overflow-x: hidden;
+  background-color: var(--bg-color); /* 统一呼吸感背景 */
 }
 
 .sidebar {
-  background-color: #304156;
-  transition: width 0.28s;
+  /* 无边框设计，悬浮高亮 */
+  background-color: #fff;
+  transition: width 0.28s, box-shadow 0.3s;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.02);
+  z-index: 10;
 }
 
 .logo {
   height: 60px;
   line-height: 60px;
   text-align: center;
-  color: #fff;
-  background: #2b3643;
+  color: var(--primary-color);
+  background: transparent;
   overflow: hidden;
+  font-weight: bold;
+  letter-spacing: 1px;
 }
 
 .el-menu-vertical {
   border-right: none;
+  background-color: transparent;
+}
+
+:deep(.el-menu) {
+  background-color: transparent !important;
+}
+
+:deep(.el-menu-item) {
+  margin: 8px 12px;
+  border-radius: 12px;
+  height: 48px;
+  line-height: 48px;
+  color: var(--text-color-secondary) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:deep(.el-menu-item:hover) {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  color: var(--primary-color) !important;
+  transform: translateX(4px);
+}
+
+:deep(.el-menu-item.is-active) {
+  background-color: var(--primary-color) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(28, 28, 30, 0.2);
+  font-weight: 600;
 }
 
 .header {
@@ -160,42 +201,123 @@ const handleCommand = async (command) => {
   justify-content: space-between;
   align-items: center;
   height: 60px;
-  background-color: #fff;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
-  padding: 0 20px;
+  background-color: transparent; /* 移除白底，融入背景 */
+  padding: 0 24px;
 }
 
 .page-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: var(--primary-color);
 }
 
 .user-info {
   cursor: pointer;
   display: flex;
   align-items: center;
-  color: #606266;
+  color: var(--text-color);
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background-color: #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+  transition: all 0.3s;
+}
+
+.user-info:hover {
+  background-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 
 .main-content {
-  background-color: #f0f2f5;
-  padding: 20px;
+  background-color: transparent;
+  padding: 0 24px 24px 24px;
+  overflow-x: hidden;
 }
 
 /* 路由切换动画 */
 .fade-transform-enter-active,
 .fade-transform-leave-active {
-  transition: all 0.3s;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .fade-transform-enter-from {
   opacity: 0;
-  transform: translateX(-30px);
+  transform: translateY(20px);
 }
 
 .fade-transform-leave-to {
   opacity: 0;
-  transform: translateX(30px);
+  transform: translateY(-20px);
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 88px !important;
+  }
+
+  .logo h2 {
+    font-size: 18px;
+  }
+
+  :deep(.el-menu-item) {
+    justify-content: center;
+    padding: 0 !important;
+  }
+
+  :deep(.el-menu-item span) {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .layout-container {
+    height: auto;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .sidebar {
+    width: 72px !important;
+    flex: 0 0 72px;
+  }
+
+  .logo {
+    height: 56px;
+    line-height: 56px;
+  }
+
+  .logo h2 {
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+
+  :deep(.el-menu-item) {
+    width: 48px;
+    height: 48px;
+    margin: 8px auto;
+  }
+
+  .header {
+    height: auto;
+    min-height: 56px;
+    padding: 10px 14px;
+    gap: 12px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  .user-info {
+    max-width: 132px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .main-content {
+    padding: 0 12px 16px;
+  }
 }
 </style>

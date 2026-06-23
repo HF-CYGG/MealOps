@@ -3,7 +3,7 @@ USE reggie;
 INSERT INTO employee
   (id, username, password, name, phone, sex, id_number, status, create_time, update_time, create_user, update_user)
 VALUES
-  (1, 'admin', 'e10adc3949ba59abbe56e057f20f883e', '系统管理员', '13800000000', '男', '110101199001010011', 1, NOW(), NOW(), 1, 1);
+  (1, 'admin', '849199be4c873a9ab895576681da12f3', '系统管理员', '13800000000', '男', '110101199001010011', 1, NOW(), NOW(), 1, 1);
 
 INSERT INTO user
   (id, openid, name, phone, sex, id_number, avatar, status, create_time, update_time)
@@ -102,6 +102,6 @@ VALUES
 INSERT INTO operation_log
   (id, operation_user, operation_type, operation_method, operation_params, operation_result, operation_time, duration, ip)
 VALUES
-  (10001, 1, 'INIT', '/sql/data.sql', '{"target":"employee","username":"admin"}', '初始化管理员账号 admin/123456', NOW(), 0, '127.0.0.1'),
+  (10001, 1, 'INIT', '/sql/data.sql', '{"target":"employee","username":"admin"}', '初始化管理员账号 admin/admin1330', NOW(), 0, '127.0.0.1'),
   (10002, 1, 'INIT', '/sql/data.sql', '{"target":"dish","id":3001}', '初始化示例菜品宫保鸡丁', NOW(), 0, '127.0.0.1'),
   (10003, 1, 'INIT', '/sql/data.sql', '{"target":"setmeal","id":5001}', '初始化示例套餐经典单人餐', NOW(), 0, '127.0.0.1');

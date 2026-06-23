@@ -50,12 +50,16 @@
       <el-table-column prop="image" label="图片" align="center">
         <template #default="scope">
           <el-image 
-            style="width: 50px; height: 50px; border-radius: 4px;" 
-            :src="scope.row.image" 
+            class="dish-thumb"
+            :src="resolveImageUrl(scope.row.image)" 
             fit="cover"
-            :preview-src-list="[scope.row.image]"
+            :preview-src-list="[resolveImageUrl(scope.row.image)]"
             preview-teleported
-          />
+          >
+            <template #error>
+              <img class="dish-thumb-fallback" :src="FALLBACK_DISH_IMAGE" alt="菜品图片占位" />
+            </template>
+          </el-image>
         </template>
       </el-table-column>
       <el-table-column prop="categoryName" label="菜品分类" align="center" />
@@ -124,8 +128,25 @@
           <el-input-number v-model="form.price" :min="0.01" :precision="2" :step="1" />
           <span style="margin-left: 10px;">元</span>
         </el-form-item>
-        <el-form-item label="图片URL" prop="image">
-          <el-input v-model="form.image" placeholder="请输入图片URL（实际可替换为上传组件）" />
+        <el-form-item label="菜品图片" prop="image">
+          <div class="image-editor">
+            <el-upload
+              class="image-uploader"
+              action="#"
+              :show-file-list="false"
+              :http-request="handleImageUpload"
+              :before-upload="beforeImageUpload"
+              accept="image/*"
+            >
+              <div class="image-preview">
+                <img :src="resolveImageUrl(form.image)" alt="菜品图片预览" @error="applyImageFallback" />
+                <div class="image-preview-mask">
+                  {{ uploadLoading ? '上传中...' : '点击上传' }}
+                </div>
+              </div>
+            </el-upload>
+            <el-input v-model="form.image" placeholder="上传后自动填入，也可手动编辑图片 URL" clearable />
+          </div>
         </el-form-item>
         <el-form-item label="菜品描述" prop="description">
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入菜品描述" />
@@ -153,6 +174,8 @@ import {
   getDishById
 } from '@/api/dish'
 import { getCategoryList } from '@/api/category'
+import { uploadFile } from '@/api/common'
+import { applyImageFallback, FALLBACK_DISH_IMAGE, resolveImageUrl } from '@/utils/image'
 
 const searchForm = reactive({
   name: '',
@@ -171,6 +194,7 @@ const categoryList = ref([])
 const dialogVisible = ref(false)
 const dialogType = ref('add')
 const submitLoading = ref(false)
+const uploadLoading = ref(false)
 const formRef = ref(null)
 const form = reactive({
   id: '',
@@ -186,7 +210,32 @@ const rules = {
   name: [{ required: true, message: '请输入菜品名称', trigger: 'blur' }],
   categoryId: [{ required: true, message: '请选择菜品分类', trigger: 'change' }],
   price: [{ required: true, message: '请输入菜品价格', trigger: 'blur' }],
-  image: [{ required: true, message: '请输入图片URL', trigger: 'blur' }]
+  image: [{ required: true, message: '请上传或填写菜品图片', trigger: 'blur' }]
+}
+
+const beforeImageUpload = (file) => {
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning('请选择图片文件')
+    return false
+  }
+  return true
+}
+
+const handleImageUpload = async ({ file, onSuccess, onError }) => {
+  uploadLoading.value = true
+  try {
+    const res = await uploadFile(file)
+    if (res.code === 1 && res.data?.url) {
+      form.image = res.data.url
+      ElMessage.success('图片上传成功')
+      onSuccess?.(res)
+    }
+  } catch (error) {
+    console.error('图片上传失败', error)
+    onError?.(error)
+  } finally {
+    uploadLoading.value = false
+  }
 }
 
 // 获取分类下拉列表
@@ -391,5 +440,109 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 页面特有样式（通用样式已在全局 style.css 中定义） */
+.dish-thumb,
+.dish-thumb-fallback {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  display: block;
+}
+
+.image-editor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.image-uploader {
+  width: 180px;
+}
+
+.image-preview {
+  width: 180px;
+  height: 118px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #f5f5f7;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.image-preview-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  background: rgba(28, 28, 30, 0.46);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.image-preview:hover .image-preview-mask {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .header-action {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .header-action :deep(.el-form) {
+    width: 100%;
+  }
+
+  .header-action :deep(.el-form-item) {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .header-action :deep(.el-form-item__content),
+  .header-action :deep(.el-input),
+  .header-action :deep(.el-select) {
+    width: 100%;
+  }
+
+  .action-buttons {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .action-buttons .el-button {
+    flex: 1 1 140px;
+    min-height: 44px;
+  }
+
+  :deep(.el-table) {
+    min-width: 820px;
+  }
+
+  :deep(.el-table__inner-wrapper) {
+    overflow-x: auto;
+  }
+
+  .image-uploader,
+  .image-preview {
+    width: 100%;
+    max-width: 260px;
+  }
+
+  .image-preview {
+    height: auto;
+    aspect-ratio: 16 / 10;
+  }
+}
 </style>

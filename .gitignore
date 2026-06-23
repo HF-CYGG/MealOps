@@ -4,6 +4,7 @@ uploads/
 .m2/
 .m2repo/
 .m2repo*/
+.trae/
 
 .idea/
 .vscode/
