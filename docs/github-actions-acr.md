@@ -2,7 +2,7 @@
 
 本仓库的镜像链路分为两段：
 
-- GitHub Actions：只做代码测试、前端构建和 Dockerfile 构建验证，不登录、不推送阿里云 ACR。
+- GitHub Actions：只做代码测试、前端构建和 Docker Compose 联调冒烟验证，不登录、不推送阿里云 ACR。
 - 阿里云 ACR：使用 ACR 控制台中配置的 GitHub 构建规则，由阿里云构建服务器自动构建并写入 ACR 镜像仓库。
 
 ## GitHub Actions
@@ -21,10 +21,10 @@ workflow 文件为 `.github/workflows/docker-validate.yml`。
 
 - `mvn -B test`
 - `cd frontend && npm ci && npm run build`
-- 构建后端 Docker 镜像：构建上下文 `/`，Dockerfile 为 `Dockerfile`
-- 构建前端 Docker 镜像：构建上下文 `frontend/`，Dockerfile 为 `frontend/Dockerfile`
+- 运行 `tools/docker-smoke-test.sh`，通过 Docker Compose 构建并启动完整栈
+- 验证后端 `/health`、前端 `/client/home` 和 `/login` 可访问
 
-GitHub Actions 中 `docker/build-push-action` 使用 `push: false`，只验证镜像可以成功构建。
+GitHub Actions 不使用 `docker/build-push-action` 推送镜像，而是在同一个 job 内运行 `sh tools/docker-smoke-test.sh`，通过 Docker Compose 构建并拉起 MySQL、Redis、后端和前端后执行联调冒烟验证。
 
 ## 阿里云 ACR 自动构建
 
