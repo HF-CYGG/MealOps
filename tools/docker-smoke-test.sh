@@ -45,9 +45,55 @@ wait_http_ok() {
   done
 }
 
+compose() {
+  docker compose --env-file "$ENV_FILE" "$@"
+}
+
+dump_logs() {
+  echo "Docker Compose service status:" >&2
+  compose ps >&2 || true
+  for service in mysql redis backend frontend; do
+    echo "Recent $service logs:" >&2
+    compose logs --tail=120 "$service" >&2 || true
+  done
+}
+
+wait_container_healthy() {
+  service="$1"
+  timeout="$2"
+  start="$(date +%s)"
+  while :; do
+    container_id="$(compose ps -q "$service" 2>/dev/null || true)"
+    if [ -z "$container_id" ]; then
+      echo "Container for $service was not created" >&2
+      dump_logs
+      return 1
+    fi
+
+    state="$(docker inspect -f '{{.State.Status}}' "$container_id" 2>/dev/null || true)"
+    health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id" 2>/dev/null || true)"
+    if [ "$health" = "healthy" ]; then
+      return 0
+    fi
+    if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then
+      echo "$service exited before becoming healthy" >&2
+      dump_logs
+      return 1
+    fi
+
+    now="$(date +%s)"
+    if [ $((now - start)) -ge "$timeout" ]; then
+      echo "Timed out waiting for $service to become healthy; state=$state health=$health" >&2
+      dump_logs
+      return 1
+    fi
+    sleep 3
+  done
+}
+
 cleanup() {
   if [ "$KEEP_RUNNING" != "1" ]; then
-    docker compose --env-file "$ENV_FILE" down
+    compose down
   fi
 }
 trap cleanup EXIT
@@ -55,25 +101,32 @@ trap cleanup EXIT
 FRONTEND_PORT="$(read_env_value FRONTEND_PORT 8088)"
 BACKEND_PORT="$(read_env_value BACKEND_PORT 8080)"
 
-if ! docker compose --env-file "$ENV_FILE" config; then
+if ! compose config; then
   echo "docker compose config failed" >&2
   exit 1
 fi
 
-if ! docker compose --env-file "$ENV_FILE" up -d --build; then
-  echo "docker compose up failed" >&2
+if ! compose up -d --build mysql redis; then
+  echo "docker compose infra startup failed" >&2
+  dump_logs
+  exit 1
+fi
+
+wait_container_healthy mysql "$TIMEOUT_SECONDS"
+wait_container_healthy redis "$TIMEOUT_SECONDS"
+
+if ! compose up -d --build backend frontend; then
+  echo "docker compose app startup failed" >&2
+  dump_logs
   exit 1
 fi
 
 if ! wait_http_ok "http://127.0.0.1:$BACKEND_PORT/health" "$TIMEOUT_SECONDS" ||
    ! wait_http_ok "http://127.0.0.1:$FRONTEND_PORT/client/home" "$TIMEOUT_SECONDS" ||
    ! wait_http_ok "http://127.0.0.1:$FRONTEND_PORT/login" "$TIMEOUT_SECONDS"; then
-  echo "Recent backend logs:" >&2
-  docker compose --env-file "$ENV_FILE" logs --tail=120 backend >&2 || true
-  echo "Recent frontend logs:" >&2
-  docker compose --env-file "$ENV_FILE" logs --tail=80 frontend >&2 || true
+  dump_logs
   exit 1
 fi
 
-docker compose --env-file "$ENV_FILE" ps
+compose ps
 echo "MealOps Docker smoke test passed."

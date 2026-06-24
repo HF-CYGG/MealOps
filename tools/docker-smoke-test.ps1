@@ -69,24 +69,77 @@ function Wait-HttpOk {
     throw "Timed out waiting for $Url"
 }
 
+function Invoke-Compose {
+    param(
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$Arguments
+    )
+
+    Invoke-Docker compose --env-file $EnvFile @Arguments
+}
+
+function Write-ComposeLogs {
+    Write-Host "Docker Compose service status:"
+    docker compose --env-file $EnvFile ps | Out-Host
+    foreach ($service in @("mysql", "redis", "backend", "frontend")) {
+        Write-Host "Recent $service logs:"
+        docker compose --env-file $EnvFile logs --tail=120 $service | Out-Host
+    }
+}
+
+function Wait-ContainerHealthy {
+    param(
+        [string]$Service,
+        [int]$Timeout
+    )
+
+    $deadline = (Get-Date).AddSeconds($Timeout)
+    do {
+        $containerId = (& docker compose --env-file $EnvFile ps -q $Service 2>$null)
+        if (-not $containerId) {
+            Write-Host "Container for $Service was not created"
+            Write-ComposeLogs
+            throw "Container for $Service was not created"
+        }
+
+        $state = (& docker inspect -f "{{.State.Status}}" $containerId 2>$null)
+        $health = (& docker inspect -f "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" $containerId 2>$null)
+        if ($health -eq "healthy") {
+            return
+        }
+        if ($state -eq "exited" -or $state -eq "dead") {
+            Write-Host "$Service exited before becoming healthy"
+            Write-ComposeLogs
+            throw "$Service exited before becoming healthy"
+        }
+
+        Start-Sleep -Seconds 3
+    } while ((Get-Date) -lt $deadline)
+
+    Write-Host "Timed out waiting for $Service to become healthy; state=$state health=$health"
+    Write-ComposeLogs
+    throw "Timed out waiting for $Service to become healthy"
+}
+
 $frontendPort = Read-EnvValue -Path $EnvFile -Name "FRONTEND_PORT" -Default "8088"
 $backendPort = Read-EnvValue -Path $EnvFile -Name "BACKEND_PORT" -Default "8080"
 
 try {
-    Invoke-Docker compose --env-file $EnvFile config
-    Invoke-Docker compose --env-file $EnvFile up -d --build
+    Invoke-Compose config
+    Invoke-Compose up -d --build mysql redis
+    Wait-ContainerHealthy -Service "mysql" -Timeout $TimeoutSeconds
+    Wait-ContainerHealthy -Service "redis" -Timeout $TimeoutSeconds
+    Invoke-Compose up -d --build backend frontend
 
     Wait-HttpOk -Url "http://127.0.0.1:$backendPort/health" -Timeout $TimeoutSeconds
     Wait-HttpOk -Url "http://127.0.0.1:$frontendPort/client/home" -Timeout $TimeoutSeconds
     Wait-HttpOk -Url "http://127.0.0.1:$frontendPort/login" -Timeout $TimeoutSeconds
 
-    Invoke-Docker compose --env-file $EnvFile ps
+    Invoke-Compose ps
     Write-Host "MealOps Docker smoke test passed."
 } catch {
-    Write-Host "MealOps Docker smoke test failed. Recent backend logs:"
-    docker compose --env-file $EnvFile logs --tail=120 backend | Out-Host
-    Write-Host "Recent frontend logs:"
-    docker compose --env-file $EnvFile logs --tail=80 frontend | Out-Host
+    Write-Host "MealOps Docker smoke test failed."
+    Write-ComposeLogs
     throw
 } finally {
     if (-not $KeepRunning) {

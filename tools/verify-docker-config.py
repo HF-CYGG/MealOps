@@ -122,12 +122,18 @@ def check_smoke_test_scripts() -> None:
     ):
         require("docker compose --env-file" in script, f"{script_name} must run docker compose with .env")
         require("up -d --build" in script, f"{script_name} must build and start the stack")
+        require("mysql redis" in script, f"{script_name} must start infrastructure services before app services")
+        require("backend frontend" in script, f"{script_name} must start app services after dependencies are healthy")
         require("/health" in script, f"{script_name} must verify backend health endpoint")
         require("/client/home" in script, f"{script_name} must verify frontend user route")
         require("/login" in script, f"{script_name} must verify frontend admin route")
+        require("mysql" in script and "redis" in script, f"{script_name} must include dependency logs on smoke-test failure")
+        require("logs --tail=120" in script, f"{script_name} must print service logs on smoke-test failure")
 
     require("$LASTEXITCODE" in powershell_script, "PowerShell smoke test must fail on non-zero docker exit codes")
+    require("Wait-ContainerHealthy" in powershell_script, "PowerShell smoke test must wait for dependency health explicitly")
     require("set -eu" in shell_script, "shell smoke test must fail fast")
+    require("wait_container_healthy" in shell_script, "shell smoke test must wait for dependency health explicitly")
     require("tools/docker-smoke-test.ps1" in docs, "deployment doc must mention PowerShell smoke test")
     require("tools/docker-smoke-test.sh" in docs, "deployment doc must mention shell smoke test")
 
