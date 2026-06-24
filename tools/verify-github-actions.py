@@ -38,33 +38,52 @@ def check_triggers(workflow: str) -> None:
     require_text(workflow, "release-v*", "workflow must align with Aliyun ACR release tag rule")
 
 
+def check_unified_job(workflow: str) -> None:
+    jobs_match = re.search(r"(?ms)^jobs:\n(?P<body>.*)", workflow)
+    require(jobs_match is not None, "workflow must define jobs")
+    job_ids = re.findall(r"(?m)^  ([A-Za-z0-9_-]+):\s*$", jobs_match.group("body"))
+    require(job_ids == ["full-stack-validation"], "workflow must use one unified full-stack validation job")
+    require_text(workflow, "name: Full Stack Integration Validation", "workflow job must be named as unified validation")
+    require("backend-test:" not in workflow, "workflow must not split backend tests into a separate job")
+    require("frontend-build:" not in workflow, "workflow must not split frontend build into a separate job")
+    require("docker-build:" not in workflow, "workflow must not split Docker validation into a separate job")
+    require("needs:" not in workflow, "unified validation job must not depend on split jobs")
+
+
 def check_validation_jobs(workflow: str) -> None:
     require_text(workflow, "mvn -B test", "workflow must run backend tests")
-    require_text(workflow, "working-directory: frontend", "workflow must run frontend commands in frontend directory")
+    require(workflow.count("working-directory: frontend") >= 2, "workflow must run frontend install and build in frontend directory")
     require_text(workflow, "npm ci", "workflow must install frontend dependencies reproducibly")
     require_text(workflow, "npm run build", "workflow must build frontend")
 
 
 def check_docker_validation(workflow: str) -> None:
-    require_text(workflow, "docker/build-push-action@v6", "workflow must use Docker build-push action")
-    require_text(workflow, "context: .", "workflow must build backend from repository root context")
-    require_text(workflow, "file: ./Dockerfile", "workflow must build backend from root Dockerfile")
-    require_text(workflow, "context: ./frontend", "workflow must build frontend from frontend context")
-    require_text(workflow, "file: ./frontend/Dockerfile", "workflow must build frontend from frontend Dockerfile")
-    require_text(workflow, "push: false", "GitHub Actions must build Docker images without pushing them")
+    require_text(
+        workflow,
+        "Run Docker Compose integration smoke test",
+        "workflow must run the unified Docker Compose integration smoke test",
+    )
+    require_text(
+        workflow,
+        "TIMEOUT_SECONDS=240 sh tools/docker-smoke-test.sh",
+        "workflow must run the existing full-stack Docker smoke script",
+    )
+    require("docker/build-push-action" not in workflow, "workflow must not split Docker validation into separate image builds")
     require("docker/login-action" not in workflow, "GitHub Actions must not log in to Aliyun ACR")
     require("ALIYUN_ACR_" not in workflow, "GitHub Actions must not require Aliyun ACR secrets")
     require(f"ACR_REGISTRY: {EXPECTED_REGISTRY}" not in workflow, "GitHub Actions must not target ACR directly")
     require(f"IMAGE_REPOSITORY: {EXPECTED_REPOSITORY}" not in workflow, "GitHub Actions must not push the ACR repository")
     require("push: true" not in workflow, "GitHub Actions must not push Docker images")
+    require("push: false" not in workflow, "workflow must not use split image build push settings")
 
 
 def main() -> int:
     workflow = check_workflow_exists()
     check_triggers(workflow)
+    check_unified_job(workflow)
     check_validation_jobs(workflow)
     check_docker_validation(workflow)
-    print("GitHub Actions Docker validation workflow checks passed")
+    print("GitHub Actions unified Docker validation workflow checks passed")
     return 0
 
 
