@@ -75,12 +75,27 @@ def check_dockerfiles_and_nginx() -> None:
     nginx_conf = read("frontend/nginx.conf")
 
     require(backend_dockerfile.count("\nFROM ") + backend_dockerfile.startswith("FROM ") == 2, "backend Dockerfile must be multi-stage")
+    require("# syntax=docker/dockerfile" not in backend_dockerfile, "backend Dockerfile must not pull Docker Hub syntax images")
     require("--mount=type=cache" not in backend_dockerfile, "backend Dockerfile should not require BuildKit-only cache mounts")
-    require("eclipse-temurin:17-jre-alpine" in backend_dockerfile, "backend runtime must use Java 17 JRE")
+    require(
+        "public.ecr.aws/docker/library/maven:3.9.11-eclipse-temurin-17 AS build" in backend_dockerfile,
+        "backend build image must avoid Docker Hub anonymous pull limits",
+    )
+    require(
+        "public.ecr.aws/docker/library/eclipse-temurin:17-jre-alpine" in backend_dockerfile,
+        "backend runtime must use Java 17 JRE without Docker Hub anonymous pulls",
+    )
     require("HEALTHCHECK" in backend_dockerfile, "backend Dockerfile must define a health check")
 
-    require("node:22-alpine AS build" in frontend_dockerfile, "frontend Dockerfile must build with Node 22")
-    require("nginx:1.27-alpine" in frontend_dockerfile, "frontend runtime must use Nginx")
+    require("# syntax=docker/dockerfile" not in frontend_dockerfile, "frontend Dockerfile must not pull Docker Hub syntax images")
+    require(
+        "public.ecr.aws/docker/library/node:22-alpine AS build" in frontend_dockerfile,
+        "frontend Dockerfile must build with Node 22 without Docker Hub anonymous pulls",
+    )
+    require(
+        "public.ecr.aws/docker/library/nginx:1.27-alpine" in frontend_dockerfile,
+        "frontend runtime must use Nginx without Docker Hub anonymous pulls",
+    )
     require("npm ci" in frontend_dockerfile, "frontend Dockerfile must use npm ci for reproducible installs")
 
     require("try_files $uri $uri/ /index.html;" in nginx_conf, "Nginx must support Vue history routes")
