@@ -19,13 +19,23 @@
 
 ## 首次启动
 
-1. 复制环境变量模板：
+### Linux / macOS
 
 ```bash
 cp .env.example .env
+docker compose --env-file .env up -d --build
 ```
 
-2. 修改 `.env` 中的敏感配置：
+### Windows PowerShell
+
+```powershell
+Copy-Item .env.example .env
+docker compose --env-file .env up -d --build
+```
+
+## 敏感配置建议
+
+首次复制 `.env` 后，请至少修改以下配置再用于长期环境：
 
 ```env
 MYSQL_ROOT_PASSWORD=change-this-mysql-password
@@ -33,13 +43,7 @@ MYSQL_PASSWORD=change-this-mysql-password
 MEALOPS_JWT_SECRET=change-this-long-random-secret
 ```
 
-3. 构建并启动：
-
-```bash
-docker compose --env-file .env up -d --build
-```
-
-4. 查看服务状态：
+## 查看服务状态
 
 ```bash
 docker compose ps
@@ -161,6 +165,10 @@ docker compose logs backend
 ```
 
 前端生产环境通过 Nginx 把 `/api/*` 转发到 `backend:8080`，不依赖 Vite dev proxy。
+
+### 本地开发前端接口失败
+
+如果使用的是 `npm run dev` 启动的 Vite 前端，请先确认本地后端 `http://localhost:8080` 已启动。开发环境的 `/api` 请求不会走 Docker 中的 `backend` 服务名。
 
 ### 后端无法连接 MySQL
 
