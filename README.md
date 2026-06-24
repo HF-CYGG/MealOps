@@ -35,6 +35,24 @@ mysql -u root -p < sql/schema.sql
 mysql -u root -p reggie < sql/data.sql
 ```
 
+## Docker 部署
+
+项目已提供 Docker Compose 部署文件，包含 MySQL、Redis、Spring Boot 后端和 Nginx 前端。
+
+```bash
+cp .env.example .env
+docker compose --env-file .env up -d --build
+```
+
+默认访问地址：
+
+- 用户端：`http://localhost:8088/client/home`
+- 管理端：`http://localhost:8088/login`
+- 后端健康检查：`http://localhost:8080/health`
+- Swagger UI：`http://localhost:8080/swagger-ui.html`
+
+详细部署、重建、日志和数据重置说明见 `docs/docker-deployment.md`。
+
 初始化账号：
 
 - 管理员：`admin`
