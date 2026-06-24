@@ -1,48 +1,50 @@
-# GitHub Actions 阿里云 ACR 发布说明
+# GitHub Actions 与阿里云 ACR 自动构建说明
 
-本仓库通过 `.github/workflows/acr-publish.yml` 自动验证并发布 MealOps Docker 镜像到阿里云 ACR。
+本仓库的镜像链路分为两段：
 
-## 发布目标
+- GitHub Actions：只做代码测试、前端构建和 Dockerfile 构建验证，不登录、不推送阿里云 ACR。
+- 阿里云 ACR：使用 ACR 控制台中配置的 GitHub 构建规则，由阿里云构建服务器自动构建并写入 ACR 镜像仓库。
 
-- Registry: `crpi-9gmsq2s17re73ia9.cn-qingdao.personal.cr.aliyuncs.com`
-- Repository: `yyh163/mealops`
-- Backend Dockerfile: `Dockerfile`
-- Frontend Dockerfile: `frontend/Dockerfile`
+## GitHub Actions
 
-## GitHub Secrets
+workflow 文件为 `.github/workflows/docker-validate.yml`。
 
-在 GitHub 仓库 `HF-CYGG/MealOps` 的 `Settings -> Secrets and variables -> Actions` 中新增：
+触发规则：
 
-| Secret | 用途 |
-| --- | --- |
-| `ALIYUN_ACR_USERNAME` | 登录阿里云 ACR 的用户名 |
-| `ALIYUN_ACR_PASSWORD` | 登录阿里云 ACR 的密码或访问凭据 |
+- 推送到 `main`
+- 推送到 `codex/**`
+- 推送 `release-v*` 标签
+- Pull Request 到 `main`
+- 手动 `workflow_dispatch`
 
-不要把 ACR 密码、临时 Token 或 Docker 登录后的配置文件提交到仓库。
+执行内容：
 
-## 触发规则
+- `mvn -B test`
+- `cd frontend && npm ci && npm run build`
+- 构建后端 Docker 镜像：构建上下文 `/`，Dockerfile 为 `Dockerfile`
+- 构建前端 Docker 镜像：构建上下文 `frontend/`，Dockerfile 为 `frontend/Dockerfile`
 
-- 推送到 `main`：运行后端测试、前端构建，并推送 `latest` 与 `sha` 标签。
-- 推送到 `codex/**`：运行后端测试、前端构建，并推送 `sha` 标签，便于验证分支镜像。
-- 推送 `v*` 标签：运行验证并发布带版本前缀的镜像标签。
-- Pull Request 到 `main`：只运行验证，不登录 ACR，不推送镜像。
-- `workflow_dispatch`：支持在 GitHub Actions 页面手动触发。
+GitHub Actions 中 `docker/build-push-action` 使用 `push: false`，只验证镜像可以成功构建。
 
-## 镜像标签
+## 阿里云 ACR 自动构建
 
-同一个 ACR repository 下使用前缀区分前后端：
-
-| 服务 | 示例标签 |
-| --- | --- |
-| Backend | `backend-sha-1a2b3c4`, `backend-latest`, `backend-v1.0.0` |
-| Frontend | `frontend-sha-1a2b3c4`, `frontend-latest`, `frontend-v1.0.0` |
-
-完整镜像示例：
+ACR 镜像仓库：
 
 ```text
-crpi-9gmsq2s17re73ia9.cn-qingdao.personal.cr.aliyuncs.com/yyh163/mealops:backend-latest
-crpi-9gmsq2s17re73ia9.cn-qingdao.personal.cr.aliyuncs.com/yyh163/mealops:frontend-latest
+crpi-9gmsq2s17re73ia9.cn-qingdao.personal.cr.aliyuncs.com/yyh163/mealops
 ```
+
+当前已在阿里云 ACR 控制台配置构建规则：
+
+| GitHub 规则 | 构建上下文 | Dockerfile | 镜像版本 |
+| --- | --- | --- | --- |
+| `branches:main` | `/` | `Dockerfile` | `latest` |
+| `tags:release-v$version` | `/` | `Dockerfile` | `$version` |
+
+因此：
+
+- 推送 `main` 后，由阿里云 ACR 自动构建并写入 `:latest`。
+- 推送 `release-v1.0.0` 后，由阿里云 ACR 自动构建并写入 `:1.0.0`。
 
 ## 本地校验
 
@@ -55,18 +57,10 @@ cd frontend && npm run build
 mvn test
 ```
 
-`tools/verify-github-actions.py` 只做静态校验，不会连接 GitHub 或 ACR；真实推送结果以 GitHub Actions 日志为准。
+`tools/verify-github-actions.py` 会检查 GitHub Actions 是否只做 Docker build 验证，并防止重新引入 `docker/login-action`、`ALIYUN_ACR_*` 或 `push: true`。
 
-## 远端仓库
+## 注意事项
 
-本地仓库如果还没有 `origin`，可配置为：
-
-```bash
-git remote add origin https://github.com/HF-CYGG/MealOps.git
-```
-
-之后推送当前分支：
-
-```bash
-git push -u origin codex/mealops-dining-demo
-```
+- GitHub 仓库不需要配置 `ALIYUN_ACR_USERNAME` 或 `ALIYUN_ACR_PASSWORD`。
+- ACR 凭据和构建权限由阿里云 ACR 控制台管理，不进入 GitHub Actions。
+- 如果需要让前端镜像也由 ACR 自动构建，需要在 ACR 中另建仓库或规则，构建上下文设为 `frontend/`，Dockerfile 设为 `frontend/Dockerfile`。
