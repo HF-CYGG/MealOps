@@ -44,6 +44,16 @@ cp .env.example .env
 docker compose --env-file .env up -d --build
 ```
 
+## GitHub Actions / ACR 发布
+
+仓库提供 `.github/workflows/acr-publish.yml`，会在推送到 `main`、`codex/**` 或 `v*` 标签时运行后端测试、前端构建，并将前后端 Docker 镜像推送到：
+
+```text
+crpi-9gmsq2s17re73ia9.cn-qingdao.personal.cr.aliyuncs.com/yyh163/mealops
+```
+
+需要在 GitHub Actions Secrets 中配置 `ALIYUN_ACR_USERNAME` 和 `ALIYUN_ACR_PASSWORD`。详细说明见 `docs/github-actions-acr.md`。
+
 默认访问地址：
 
 - 用户端：`http://localhost:8088/client/home`
