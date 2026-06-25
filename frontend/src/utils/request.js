@@ -1,17 +1,32 @@
 /**
  * axios 请求封装文件
  * 用于统一配置请求基础URL、超时时间、请求和响应拦截器
- * 统一处理网络错误和业务错误提示
+ * 统一处理网络错误、业务错误提示以及登录失效后的状态清理
  */
 
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { useClientUserStore } from '@/store/clientUser'
+import { useUserStore } from '@/store/user'
+import { isAuthFailureResponse, shouldRedirectAfterClientAuthFailure } from '@/utils/auth'
 
 // 创建axios实例
 const request = axios.create({
   baseURL: '/api', // 基础路径，配合vite的proxy代理
   timeout: 10000 // 请求超时时间10秒
 })
+
+// 统一清理 C 端登录状态，确保 Pinia 与 localStorage 同步失效。
+const clearClientAuthState = () => {
+  const clientUserStore = useClientUserStore()
+  clientUserStore.clearUserInfo()
+}
+
+// 统一清理 B 端登录状态，避免界面仍然误判为已登录。
+const clearAdminAuthState = () => {
+  const userStore = useUserStore()
+  userStore.clearUserInfo()
+}
 
 // 请求拦截器
 request.interceptors.request.use(
@@ -53,18 +68,46 @@ request.interceptors.response.use(
     // 对响应错误做点什么
     let msg = '网络请求错误'
     if (error.response) {
+      const currentPath = window.location.pathname
+      const isClient = currentPath.startsWith('/client')
+      const responseData = error.response.data
+
+      // 后端当前会把部分登录失效场景返回为 400，因此这里需要把鉴权语义单独识别出来。
+      if (isAuthFailureResponse(error.response.status, responseData)) {
+        msg = '登录状态已失效，请重新登录'
+
+        if (isClient) {
+          clearClientAuthState()
+
+          if (shouldRedirectAfterClientAuthFailure(currentPath) && currentPath !== '/client/login') {
+            window.location.href = `/client/login?redirect=${encodeURIComponent(currentPath)}`
+          }
+        } else {
+          clearAdminAuthState()
+
+          if (currentPath !== '/login') {
+            window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
+          }
+        }
+
+        ElMessage.error(msg)
+        return Promise.reject(error)
+      }
+
       switch (error.response.status) {
         case 401:
           msg = '未授权，请重新登录'
-          // 可以在此处添加跳转到登录页的逻辑
-          if (window.location.pathname.startsWith('/client')) {
-            localStorage.removeItem('clientToken')
-            localStorage.removeItem('clientUserInfo')
-            window.location.href = '/client/login'
+          // 这里保留 401 的兜底处理，兼容后端后续改成更标准的未授权状态码。
+          if (isClient) {
+            clearClientAuthState()
+            if (currentPath !== '/client/login') {
+              window.location.href = `/client/login?redirect=${encodeURIComponent(currentPath)}`
+            }
           } else {
-            localStorage.removeItem('token')
-            localStorage.removeItem('userInfo')
-            window.location.href = '/login'
+            clearAdminAuthState()
+            if (currentPath !== '/login') {
+              window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
+            }
           }
           break
         case 403:

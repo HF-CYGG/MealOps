@@ -3,8 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently -n backend,frontend -c yellow,cyan \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "node tools/run-script-with-local-env.mjs dev:workspace",
+    "dev:workspace": "concurrently -n backend,frontend -c yellow,cyan \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "mvn spring-boot:run",
+    "dev:backend:local": "node tools/run-script-with-local-env.mjs dev:backend",
     "dev:frontend": "npm --prefix frontend run dev"
   },
   "devDependencies": {
