@@ -143,6 +143,45 @@ npm run dev
 
 ## Docker 部署
 
+### 单容器镜像（ACR / 1Panel 推荐）
+
+阿里云 ACR 如果只构建根目录 `Dockerfile`，生成的 `mealops:latest` 是“前端 + 后端”一体镜像：Docker 构建阶段先执行 Vue 打包，再把 `frontend/dist` 放入 Spring Boot 静态资源目录，最终运行时只启动一个 Java 进程。
+
+这种模式下不需要单独创建前端容器，也不需要 Nginx 容器。1Panel 中这个项目容器建议这样填：
+
+| 配置项 | 推荐值 |
+| --- | --- |
+| 镜像 | `crpi-9gmsq2s17re73ia9.cn-qingdao.personal.cr.aliyuncs.com/yyh163/mealops:latest` |
+| 端口 | 宿主 `8088` -> 容器 `8080` |
+| 上传挂载 | `/opt/MealOps/app/uploads` -> `/app/uploads`，读写 |
+| 日志挂载 | `/opt/MealOps/app/logs` -> `/app/logs`，读写 |
+| 访问管理端 | `http://服务器IP:8088/login` |
+| 访问用户端 | `http://服务器IP:8088/client/home` |
+| 健康检查 | `http://服务器IP:8088/health` |
+
+项目容器仍然需要连接 MySQL 和 Redis。若 MySQL、Redis 是 1Panel 应用，请把项目容器、MySQL、Redis 放到同一个 Docker 网络，并保证项目容器内能通过 `mysql:3306`、`redis:6379` 访问它们；如果服务名不同，就把下面的 `MYSQL_URL` 和 `REDIS_HOST` 改成实际容器名或网络别名。
+
+单容器项目推荐环境变量：
+
+```env
+MYSQL_URL=jdbc:mysql://mysql:3306/reggie?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+MYSQL_USERNAME=mealops
+MYSQL_PASSWORD=change-this-mysql-password
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_DATABASE=0
+REDIS_PASSWORD=
+MEALOPS_UPLOAD_DIR=/app/uploads
+MEALOPS_JWT_SECRET=change-this-long-random-secret
+MEALOPS_JWT_TTL_HOURS=2
+LOG_PATH=/app/logs
+TZ=Asia/Shanghai
+```
+
+前端生产请求仍使用同源 `/api/`，一体镜像内部会自动把 `/api/employee/login` 转发到后端原始接口 `/employee/login`。Vue history 路由也由 Spring Boot 回退到 `index.html`，所以直接打开 `/login`、`/home`、`/client/home` 都应返回前端页面。
+
+### Docker Compose 多容器部署
+
 项目已提供 Docker Compose 一键部署，默认启动 MySQL、Redis、Spring Boot 后端和 Nginx 前端。前端请求同源 `/api`，Nginx 会自动把 `/api/` 转发到后端容器 `backend:8080`，启动后不需要再手动配置前后端地址。
 
 默认部署结果：

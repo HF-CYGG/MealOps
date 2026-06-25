@@ -91,9 +91,14 @@ def check_dockerfiles_and_nginx() -> None:
     nginx_conf = read("frontend/nginx.conf")
     frontend_request = read("frontend/src/utils/request.js")
 
-    require(backend_dockerfile.count("\nFROM ") + backend_dockerfile.startswith("FROM ") == 2, "backend Dockerfile must be multi-stage")
+    require(backend_dockerfile.count("\nFROM ") + backend_dockerfile.startswith("FROM ") == 3, "root Dockerfile must build frontend and backend into one runtime image")
     require("# syntax=docker/dockerfile" not in backend_dockerfile, "backend Dockerfile must not pull Docker Hub syntax images")
     require("--mount=type=cache" not in backend_dockerfile, "backend Dockerfile should not require BuildKit-only cache mounts")
+    require(
+        "public.ecr.aws/docker/library/node:22-alpine AS frontend-build" in backend_dockerfile,
+        "root Dockerfile must build Vue frontend with Node 22",
+    )
+    require("COPY --from=frontend-build /workspace/frontend/dist ./src/main/resources/static" in backend_dockerfile, "root Dockerfile must embed frontend dist into Spring Boot static resources")
     require(
         "public.ecr.aws/docker/library/maven:3.9.11-eclipse-temurin-17 AS build" in backend_dockerfile,
         "backend build image must avoid Docker Hub anonymous pull limits",
@@ -122,8 +127,10 @@ def check_dockerfiles_and_nginx() -> None:
     require("client_max_body_size 20m;" in nginx_conf, "Nginx upload limit must match Spring multipart max request size")
     require(
         "baseURL: '/api'" in frontend_request or 'baseURL: "/api"' in frontend_request,
-        "frontend must use same-origin /api so Docker Nginx can proxy requests to backend",
+        "frontend must use same-origin /api so Nginx or the single-container API filter can route requests to backend",
     )
+    require("ApiPrefixForwardFilter" in read("src/main/java/com/cjc/mealops/config/ApiPrefixForwardFilter.java"), "single-container image must support /api-prefixed frontend requests")
+    require("SpaForwardController" in read("src/main/java/com/cjc/mealops/controller/SpaForwardController.java"), "single-container image must support Vue history route fallback")
 
 
 def check_readme_docker_integration() -> None:
@@ -134,6 +141,7 @@ def check_readme_docker_integration() -> None:
     )
     require("`${FRONTEND_PORT:-8088}`" in readme, "README must document default frontend host port")
     require("`/api/`" in readme, "README must document same-origin frontend API requests")
+    require("单容器镜像" in readme, "README must document the ACR/1Panel single project container deployment")
     require("`backend:8080`" in readme, "README must document Nginx proxy target backend service")
     require("`mysql:3306/reggie`" in readme, "README must document backend default MySQL target")
     require("KEEP_RUNNING=1 sh tools/docker-smoke-test.sh" in readme, "README must recommend self-check startup on Linux/macOS")

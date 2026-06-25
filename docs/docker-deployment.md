@@ -1,5 +1,45 @@
 # MealOps Docker 部署说明
 
+## ACR / 1Panel 单项目容器
+
+根目录 `Dockerfile` 会构建一个前后端一体镜像。构建过程先打包 Vue 前端，再把 `frontend/dist` 写入 Spring Boot 静态资源，运行时只启动一个 Java 容器即可同时提供前端页面和后端 API。
+
+1Panel 手动创建项目容器时建议使用：
+
+| 配置项 | 推荐值 |
+| --- | --- |
+| 镜像 | `crpi-9gmsq2s17re73ia9.cn-qingdao.personal.cr.aliyuncs.com/yyh163/mealops:latest` |
+| 端口 | 宿主 `8088` -> 容器 `8080` |
+| 上传挂载 | `/opt/MealOps/app/uploads` -> `/app/uploads`，读写 |
+| 日志挂载 | `/opt/MealOps/app/logs` -> `/app/logs`，读写 |
+| 管理端 | `http://服务器IP:8088/login` |
+| 用户端 | `http://服务器IP:8088/client/home` |
+| 健康检查 | `http://服务器IP:8088/health` |
+
+项目容器仍需连接 MySQL 和 Redis。请将项目容器、MySQL、Redis 放在同一个 Docker 网络，并确保项目容器内能解析 `mysql` 和 `redis`；如果 1Panel 中实际容器名不同，请给 MySQL/Redis 添加网络别名，或调整 `MYSQL_URL`、`REDIS_HOST`。
+
+```env
+MYSQL_URL=jdbc:mysql://mysql:3306/reggie?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+MYSQL_USERNAME=mealops
+MYSQL_PASSWORD=change-this-mysql-password
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_DATABASE=0
+REDIS_PASSWORD=
+MEALOPS_UPLOAD_DIR=/app/uploads
+MEALOPS_JWT_SECRET=change-this-long-random-secret
+MEALOPS_JWT_TTL_HOURS=2
+LOG_PATH=/app/logs
+TZ=Asia/Shanghai
+```
+
+一体镜像内部支持两类路由兼容：
+
+- 前端请求 `/api/*` 会转发到后端原始接口，例如 `/api/employee/login` -> `/employee/login`。
+- Vue history 路由会回退到 `index.html`，例如 `/login`、`/client/home` 可直接访问。
+
+## Docker Compose 多容器部署
+
 本文档用于通过 Docker Compose 部署 MealOps 的管理端、用户端、后端、MySQL 和 Redis。默认部署后，前端通过 Nginx 把同源 `/api/` 请求转发到后端容器 `backend:8080`，不需要额外填写前端 API 地址。
 
 ## 前置要求
