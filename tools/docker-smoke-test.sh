@@ -4,6 +4,7 @@ set -eu
 ENV_FILE="${ENV_FILE:-.env}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-180}"
 KEEP_RUNNING="${KEEP_RUNNING:-0}"
+SMOKE_SUCCESS="0"
 
 cd "$(dirname "$0")/.."
 
@@ -92,8 +93,13 @@ wait_container_healthy() {
 }
 
 cleanup() {
-  if [ "$KEEP_RUNNING" != "1" ]; then
+  if [ "$KEEP_RUNNING" = "1" ]; then
+    return
+  fi
+  if [ "$SMOKE_SUCCESS" = "1" ]; then
     compose down
+  else
+    echo "MealOps Docker startup self-check failed; leaving containers running for inspection." >&2
   fi
 }
 trap cleanup EXIT
@@ -121,6 +127,9 @@ if ! compose up -d --build backend frontend; then
   exit 1
 fi
 
+wait_container_healthy backend "$TIMEOUT_SECONDS"
+wait_container_healthy frontend "$TIMEOUT_SECONDS"
+
 if ! wait_http_ok "http://127.0.0.1:$BACKEND_PORT/health" "$TIMEOUT_SECONDS" ||
    ! wait_http_ok "http://127.0.0.1:$FRONTEND_PORT/client/home" "$TIMEOUT_SECONDS" ||
    ! wait_http_ok "http://127.0.0.1:$FRONTEND_PORT/login" "$TIMEOUT_SECONDS"; then
@@ -130,3 +139,4 @@ fi
 
 compose ps
 echo "MealOps Docker smoke test passed."
+SMOKE_SUCCESS="1"

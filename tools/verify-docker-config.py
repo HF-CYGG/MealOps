@@ -28,6 +28,7 @@ def check_file_presence() -> None:
         "frontend/nginx.conf",
         "frontend/src/utils/request.js",
         "docs/docker-deployment.md",
+        ".gitignore",
         "tools/docker-smoke-test.ps1",
         "tools/docker-smoke-test.sh",
         "sql/schema.sql",
@@ -52,8 +53,16 @@ def check_compose() -> None:
         "./sql/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro" in compose,
         "data.sql must run after schema.sql",
     )
-    require("backend-uploads:/app/uploads" in compose, "uploads must be persisted in a named volume")
+    for mount in (
+        "${MEALOPS_MYSQL_DATA_DIR:-./docker-data/mysql}:/var/lib/mysql",
+        "${MEALOPS_REDIS_DATA_DIR:-./docker-data/redis}:/data",
+        "${MEALOPS_UPLOADS_DIR:-./docker-data/uploads}:/app/uploads",
+        "${MEALOPS_LOGS_DIR:-./docker-data/logs}:/app/logs",
+    ):
+        require(mount in compose, f"compose must support configurable host bind mount: {mount}")
     require("condition: service_healthy" in compose, "dependent services must wait for health checks")
+    require("location = /healthz" in read("frontend/nginx.conf"), "frontend Nginx must expose a health endpoint")
+    require("wget -qO- http://127.0.0.1/healthz" in compose, "frontend service must define a container health check")
 
 
 def check_env_template() -> None:
@@ -65,9 +74,15 @@ def check_env_template() -> None:
         "MYSQL_ROOT_PASSWORD=",
         "MYSQL_PASSWORD=",
         "REDIS_PASSWORD=",
+        "MEALOPS_MYSQL_DATA_DIR=",
+        "MEALOPS_REDIS_DATA_DIR=",
+        "MEALOPS_UPLOADS_DIR=",
+        "MEALOPS_LOGS_DIR=",
         "MEALOPS_JWT_SECRET=",
     ):
         require(key in env_example, f"missing env template key: {key}")
+    gitignore = read(".gitignore")
+    require("docker-data/" in gitignore, "docker-data host mount directory must be ignored by git")
 
 
 def check_dockerfiles_and_nginx() -> None:
@@ -111,15 +126,24 @@ def check_dockerfiles_and_nginx() -> None:
 
 def check_readme_docker_integration() -> None:
     readme = read("README.md")
-    require("默认前后端联调行为" in readme, "README must document default frontend/backend Docker integration")
     require(
         "docker compose --env-file .env up -d --build" in readme,
         "README must document the one-command Docker Compose startup",
     )
     require("`${FRONTEND_PORT:-8088}`" in readme, "README must document default frontend host port")
-    require("同源 `/api`" in readme, "README must document same-origin frontend API requests")
+    require("`/api/`" in readme, "README must document same-origin frontend API requests")
     require("`backend:8080`" in readme, "README must document Nginx proxy target backend service")
     require("`mysql:3306/reggie`" in readme, "README must document backend default MySQL target")
+    require("KEEP_RUNNING=1 sh tools/docker-smoke-test.sh" in readme, "README must recommend self-check startup on Linux/macOS")
+    require(".\\tools\\docker-smoke-test.ps1 -KeepRunning" in readme, "README must recommend self-check startup on Windows")
+    for token in (
+        "MEALOPS_MYSQL_DATA_DIR",
+        "MEALOPS_REDIS_DATA_DIR",
+        "MEALOPS_UPLOADS_DIR",
+        "MEALOPS_LOGS_DIR",
+        "docker-data/",
+    ):
+        require(token in readme, f"README must document Docker mount setting: {token}")
 
 
 def check_sql_alignment() -> None:
@@ -143,6 +167,7 @@ def check_smoke_test_scripts() -> None:
         require("up -d --build" in script, f"{script_name} must build and start the stack")
         require("mysql redis" in script, f"{script_name} must start infrastructure services before app services")
         require("backend frontend" in script, f"{script_name} must start app services after dependencies are healthy")
+        require("frontend" in script, f"{script_name} must include frontend in startup readiness checks")
         require("/health" in script, f"{script_name} must verify backend health endpoint")
         require("/client/home" in script, f"{script_name} must verify frontend user route")
         require("/login" in script, f"{script_name} must verify frontend admin route")
@@ -151,10 +176,30 @@ def check_smoke_test_scripts() -> None:
 
     require("$LASTEXITCODE" in powershell_script, "PowerShell smoke test must fail on non-zero docker exit codes")
     require("Wait-ContainerHealthy" in powershell_script, "PowerShell smoke test must wait for dependency health explicitly")
+    require('$smokePassed = $false' in powershell_script, "PowerShell smoke test must track success before cleanup")
+    require(
+        "leaving containers running for inspection" in powershell_script,
+        "PowerShell smoke test must keep containers running when startup self-check fails",
+    )
     require("set -eu" in shell_script, "shell smoke test must fail fast")
     require("wait_container_healthy" in shell_script, "shell smoke test must wait for dependency health explicitly")
+    require('SMOKE_SUCCESS="0"' in shell_script, "shell smoke test must track success before cleanup")
+    require(
+        "leaving containers running for inspection" in shell_script,
+        "shell smoke test must keep containers running when startup self-check fails",
+    )
     require("tools/docker-smoke-test.ps1" in docs, "deployment doc must mention PowerShell smoke test")
     require("tools/docker-smoke-test.sh" in docs, "deployment doc must mention shell smoke test")
+    require("KEEP_RUNNING=1 sh tools/docker-smoke-test.sh" in docs, "deployment doc must recommend self-check startup on Linux/macOS")
+    require(".\\tools\\docker-smoke-test.ps1 -KeepRunning" in docs, "deployment doc must recommend self-check startup on Windows")
+    for token in (
+        "MEALOPS_MYSQL_DATA_DIR",
+        "MEALOPS_REDIS_DATA_DIR",
+        "MEALOPS_UPLOADS_DIR",
+        "MEALOPS_LOGS_DIR",
+        "backend:8080",
+    ):
+        require(token in docs, f"deployment doc must document Docker setting: {token}")
 
 
 def maybe_run_docker_compose_config() -> None:

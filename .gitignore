@@ -7,11 +7,16 @@
 target/
 logs/
 uploads/
+docker-data/
 
 # Maven 本地缓存目录
 .m2/
 .m2repo/
 .m2repo*/
+
+# Python 本地缓存
+__pycache__/
+*.pyc
 
 # 前端依赖与构建产物
 node_modules/

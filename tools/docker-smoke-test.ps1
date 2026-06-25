@@ -123,6 +123,7 @@ function Wait-ContainerHealthy {
 
 $frontendPort = Read-EnvValue -Path $EnvFile -Name "FRONTEND_PORT" -Default "8088"
 $backendPort = Read-EnvValue -Path $EnvFile -Name "BACKEND_PORT" -Default "8080"
+$smokePassed = $false
 
 try {
     Invoke-Compose config
@@ -130,6 +131,8 @@ try {
     Wait-ContainerHealthy -Service "mysql" -Timeout $TimeoutSeconds
     Wait-ContainerHealthy -Service "redis" -Timeout $TimeoutSeconds
     Invoke-Compose up -d --build backend frontend
+    Wait-ContainerHealthy -Service "backend" -Timeout $TimeoutSeconds
+    Wait-ContainerHealthy -Service "frontend" -Timeout $TimeoutSeconds
 
     Wait-HttpOk -Url "http://127.0.0.1:$backendPort/health" -Timeout $TimeoutSeconds
     Wait-HttpOk -Url "http://127.0.0.1:$frontendPort/client/home" -Timeout $TimeoutSeconds
@@ -137,12 +140,15 @@ try {
 
     Invoke-Compose ps
     Write-Host "MealOps Docker smoke test passed."
+    $smokePassed = $true
 } catch {
     Write-Host "MealOps Docker smoke test failed."
     Write-ComposeLogs
     throw
 } finally {
-    if (-not $KeepRunning) {
+    if (-not $KeepRunning -and $smokePassed) {
         docker compose --env-file $EnvFile down | Out-Host
+    } elseif (-not $KeepRunning) {
+        Write-Host "MealOps Docker startup self-check failed; leaving containers running for inspection."
     }
 }

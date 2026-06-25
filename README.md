@@ -143,39 +143,91 @@ npm run dev
 
 ## Docker 部署
 
-项目已提供 Docker Compose 部署文件，包含 MySQL、Redis、Spring Boot 后端和 Nginx 前端。
+项目已提供 Docker Compose 一键部署，默认启动 MySQL、Redis、Spring Boot 后端和 Nginx 前端。前端请求同源 `/api`，Nginx 会自动把 `/api/` 转发到后端容器 `backend:8080`，启动后不需要再手动配置前后端地址。
 
-推荐使用 `docker compose` 启动完整栈；如果在图形化容器面板中手动创建容器，请按本节的端口、网络、挂载和环境变量保持一致。
+默认部署结果：
 
-默认前后端联调行为：
-
-- 执行 `docker compose --env-file .env up -d --build` 会同时启动 MySQL、Redis、后端和前端。
-- 前端容器默认通过 Nginx 暴露在宿主 `${FRONTEND_PORT:-8088}`，访问 `http://localhost:8088/login` 或 `/client/home` 即可进入页面。
-- 前端代码默认请求同源 `/api`，Nginx 会自动把 `/api/` 转发到后端容器 `backend:8080`；不需要在浏览器或前端容器里手动填写后端地址。
-- 后端容器默认连接 MySQL 服务名 `mysql` 的 `3306` 端口，即 `mysql:3306/reggie`。
+| 入口 | 默认地址 | 说明 |
+| --- | --- | --- |
+| 管理端 | `http://localhost:8088/login` | Vue 前端，由 Nginx 托管 |
+| 用户端 | `http://localhost:8088/client/home` | C 端点餐页面 |
+| 后端健康检查 | `http://localhost:8080/health` | 用于确认 API 服务可用 |
+| Swagger UI | `http://localhost:8080/swagger-ui.html` | 接口文档 |
 
 Linux / macOS：
 
 ```bash
 cp .env.example .env
-docker compose --env-file .env up -d --build
+KEEP_RUNNING=1 sh tools/docker-smoke-test.sh
 ```
 
 Windows PowerShell：
 
 ```powershell
 Copy-Item .env.example .env
-docker compose --env-file .env up -d --build
+.\tools\docker-smoke-test.ps1 -KeepRunning
 ```
 
-### Docker Compose 默认容器
+推荐使用上面的启动自检脚本，而不是直接执行裸 `docker compose up`。脚本会按顺序检查 Compose 配置，先启动 MySQL 和 Redis 并等待它们进入 `healthy` 状态，再启动后端和前端并等待容器健康，最后检查后端 `/health`、前端 `/client/home` 和 `/login`。任一阶段失败时脚本会立即报错、打印近期日志，并保留已启动容器，不会自动关闭现场。
+
+如只需检查 Compose 配置：
+
+```bash
+docker compose --env-file .env config
+```
+
+启动前建议先打开 `.env`，至少填写或确认下面几类变量：
+
+```env
+# 端口：宿主机访问容器的端口
+FRONTEND_PORT=8088
+BACKEND_PORT=8080
+MYSQL_PORT=3306
+REDIS_PORT=6379
+
+# 自动挂载目录：不存在时 Docker Compose 会自动创建
+MEALOPS_MYSQL_DATA_DIR=./docker-data/mysql
+MEALOPS_REDIS_DATA_DIR=./docker-data/redis
+MEALOPS_UPLOADS_DIR=./docker-data/uploads
+MEALOPS_LOGS_DIR=./docker-data/logs
+
+# MySQL：数据库名固定为 reggie，不要在 .env 里新增 MYSQL_DATABASE
+MYSQL_ROOT_PASSWORD=change-this-mysql-password
+MYSQL_USERNAME=root
+MYSQL_PASSWORD=change-this-mysql-password
+
+# Redis：留空表示不启用密码
+REDIS_DATABASE=0
+REDIS_PASSWORD=
+
+# 后端 JWT：生产或长期环境必须修改
+MEALOPS_JWT_SECRET=change-this-long-random-secret
+MEALOPS_JWT_TTL_HOURS=2
+```
+
+Windows 路径建议使用正斜杠，例如 `D:/mealops/mysql`；Linux 服务器建议使用绝对路径，例如 `/data/mealops/mysql`。如果保留默认值，数据会自动挂载到项目目录下的 `docker-data/`，该目录已被 Git 忽略。
+
+### 自动挂载目录
+
+| `.env` 变量 | 默认宿主目录 | 容器路径 | 用途 |
+| --- | --- | --- | --- |
+| `MEALOPS_MYSQL_DATA_DIR` | `./docker-data/mysql` | `/var/lib/mysql` | MySQL 数据持久化 |
+| `MEALOPS_REDIS_DATA_DIR` | `./docker-data/redis` | `/data` | Redis AOF 数据 |
+| `MEALOPS_UPLOADS_DIR` | `./docker-data/uploads` | `/app/uploads` | 菜品图片等上传文件 |
+| `MEALOPS_LOGS_DIR` | `./docker-data/logs` | `/app/logs` | 后端日志 |
+| 固定挂载 | `./sql/schema.sql` | `/docker-entrypoint-initdb.d/01-schema.sql:ro` | 首次启动建表 |
+| 固定挂载 | `./sql/data.sql` | `/docker-entrypoint-initdb.d/02-data.sql:ro` | 首次启动演示数据 |
+
+这些目录使用宿主机 bind mount，而不是匿名卷。好处是图形化 Docker 面板、服务器备份脚本和迁移操作都能直接看到数据文件。
+
+### 默认容器与网络
 
 | 服务 | 镜像/构建 | 容器名 | 宿主端口 -> 容器端口 | 说明 |
 | --- | --- | --- | --- | --- |
-| MySQL | `mysql:8.4` | `mealops-mysql` | `${MYSQL_PORT:-3306}` -> `3306` | 默认暴露宿主 `3306`，数据库名固定为 `reggie` |
+| MySQL | `mysql:8.4` | `mealops-mysql` | `${MYSQL_PORT:-3306}` -> `3306` | 数据库名固定为 `reggie` |
 | Redis | `redis:7-alpine` | `mealops-redis` | `${REDIS_PORT:-6379}` -> `6379` | 默认无密码，可通过 `REDIS_PASSWORD` 启用 |
-| 后端 | 根目录 `Dockerfile` | `mealops-backend` | `${BACKEND_PORT:-8080}` -> `8080` | 容器内默认连接 `mysql:3306/reggie` |
-| 前端 | `frontend/Dockerfile` | `mealops-frontend` | `${FRONTEND_PORT:-8088}` -> `80` | Nginx 托管 Vue，并将 `/api/` 转发到 `backend:8080` |
+| 后端 | 根目录 `Dockerfile` | `mealops-backend` | `${BACKEND_PORT:-8080}` -> `8080` | 容器内默认连接 `mysql:3306/reggie` 和 `redis:6379` |
+| 前端 | `frontend/Dockerfile` | `mealops-frontend` | `${FRONTEND_PORT:-8088}` -> `80` | Nginx 托管 Vue，并将 `/api/` 转发到 `backend:8080`；通过 `/healthz` 做容器健康检查 |
 
 Compose 会创建默认 bridge 网络，后端通过服务名访问依赖：
 
@@ -183,35 +235,39 @@ Compose 会创建默认 bridge 网络，后端通过服务名访问依赖：
 - Redis：`redis:6379`
 - 后端：`backend:8080`
 
-### 手动创建容器配置
+数据库名固定为 `reggie`，与 `sql/schema.sql` 和 `sql/data.sql` 保持一致。不要在 `.env` 中另行添加 `MYSQL_DATABASE`，否则可能造成初始化脚本和后端连接库名不一致。
 
-如果不使用 `docker compose`，而是在容器面板中手动创建容器，建议使用同一个 bridge 网络，并设置容器名称或网络别名为 `mysql`、`redis`、`backend`、`frontend`，否则后端和前端内置的服务名访问会失败。
+### 图形化 Docker 面板填写参考
 
-手动创建时的关键配置：
+如果不通过命令行运行 Compose，而是在服务器面板中手动创建容器，请使用同一个 bridge 网络，并让容器名或网络别名保持为 `mysql`、`redis`、`backend`、`frontend`。重点填写以下内容：
 
 | 容器 | 端口 | 挂载 | 必填环境变量 |
 | --- | --- | --- | --- |
-| MySQL | `3306:3306` | 数据目录挂载到 `/var/lib/mysql`；首次初始化时将 `sql/schema.sql`、`sql/data.sql` 只读挂载到 `/docker-entrypoint-initdb.d/` | `MYSQL_ROOT_PASSWORD`、`MYSQL_DATABASE=reggie` |
-| Redis | `6379:6379` | 数据目录挂载到 `/data` | 如需密码，设置 `REDIS_PASSWORD` |
-| 后端 | `8080:8080` | 上传目录挂载到 `/app/uploads`；日志目录挂载到 `/app/logs` | `MYSQL_URL`、`MYSQL_USERNAME`、`MYSQL_PASSWORD`、`REDIS_HOST`、`REDIS_PORT`、`MEALOPS_JWT_SECRET` |
-| 前端 | `8088:80` | 一般不需要额外挂载 | 需要与后端在同一网络，Nginx 默认代理 `backend:8080` |
+| MySQL | `${MYSQL_PORT:-3306}:3306` | `${MEALOPS_MYSQL_DATA_DIR}:/var/lib/mysql`；`./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro`；`./sql/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro` | `MYSQL_ROOT_PASSWORD`、`MYSQL_DATABASE=reggie`、`TZ=Asia/Shanghai` |
+| Redis | `${REDIS_PORT:-6379}:6379` | `${MEALOPS_REDIS_DATA_DIR}:/data` | `REDIS_PASSWORD` 可留空 |
+| 后端 | `${BACKEND_PORT:-8080}:8080` | `${MEALOPS_UPLOADS_DIR}:/app/uploads`；`${MEALOPS_LOGS_DIR}:/app/logs` | `MYSQL_URL`、`MYSQL_USERNAME`、`MYSQL_PASSWORD`、`REDIS_HOST`、`REDIS_PORT`、`REDIS_DATABASE`、`REDIS_PASSWORD`、`MEALOPS_UPLOAD_DIR`、`MEALOPS_JWT_SECRET`、`LOG_PATH`、`TZ` |
+| 前端 | `${FRONTEND_PORT:-8088}:80` | 无需额外挂载 | 与后端在同一网络，Nginx 默认代理 `backend:8080` |
 
-后端手动容器推荐环境变量示例：
+后端手动容器推荐环境变量：
 
 ```env
 MYSQL_URL=jdbc:mysql://mysql:3306/reggie?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
 MYSQL_USERNAME=root
-MYSQL_PASSWORD=mealops-dev-root
+MYSQL_PASSWORD=change-this-mysql-password
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_DATABASE=0
 REDIS_PASSWORD=
 MEALOPS_UPLOAD_DIR=/app/uploads
-MEALOPS_JWT_SECRET=change-this-secret-before-production
+MEALOPS_JWT_SECRET=change-this-long-random-secret
 MEALOPS_JWT_TTL_HOURS=2
 LOG_PATH=/app/logs
 TZ=Asia/Shanghai
 ```
+
+### 手动创建容器配置
+
+优先使用上面的 Docker Compose；只有在服务器面板不支持 Compose 或必须拆分创建容器时，才按“图形化 Docker 面板填写参考”手动创建。
 
 ### `.env` 可配置变量
 
@@ -228,6 +284,10 @@ TZ=Asia/Shanghai
 | `MYSQL_PASSWORD` | `mealops-dev-root` | 后端容器 | 后端连接 MySQL 使用的密码；默认应与 `MYSQL_ROOT_PASSWORD` 一致 |
 | `REDIS_DATABASE` | `0` | 后端容器 | 后端使用的 Redis database 编号 |
 | `REDIS_PASSWORD` | 空 | Redis/后端容器 | Redis 密码；为空时 Redis 不启用密码，后端也以空密码连接 |
+| `MEALOPS_MYSQL_DATA_DIR` | `./docker-data/mysql` | MySQL 容器挂载 | 宿主机 MySQL 数据目录 |
+| `MEALOPS_REDIS_DATA_DIR` | `./docker-data/redis` | Redis 容器挂载 | 宿主机 Redis 数据目录 |
+| `MEALOPS_UPLOADS_DIR` | `./docker-data/uploads` | 后端容器挂载 | 宿主机上传文件目录 |
+| `MEALOPS_LOGS_DIR` | `./docker-data/logs` | 后端容器挂载 | 宿主机后端日志目录 |
 | `MEALOPS_JWT_SECRET` | `change-this-secret-before-production` | 后端容器 | JWT 签名密钥，生产环境必须修改 |
 | `MEALOPS_JWT_TTL_HOURS` | `2` | 后端容器 | JWT 有效小时数 |
 
@@ -244,24 +304,6 @@ TZ=Asia/Shanghai
 | `MEALOPS_UPLOAD_DIR` | `/app/uploads` | 后端上传文件目录 |
 | `LOG_PATH` | `/app/logs` | 后端日志目录 |
 | `TZ` | `Asia/Shanghai` | MySQL、后端容器时区 |
-
-### 数据与日志挂载
-
-| 卷/挂载 | 容器路径 | 用途 |
-| --- | --- | --- |
-| `mysql-data` | `/var/lib/mysql` | MySQL 数据持久化 |
-| `redis-data` | `/data` | Redis AOF 数据持久化 |
-| `backend-uploads` | `/app/uploads` | 后端上传文件持久化 |
-| `backend-logs` | `/app/logs` | 后端日志持久化 |
-| `./sql/schema.sql` | `/docker-entrypoint-initdb.d/01-schema.sql:ro` | MySQL 首次启动建表脚本 |
-| `./sql/data.sql` | `/docker-entrypoint-initdb.d/02-data.sql:ro` | MySQL 首次启动演示数据脚本 |
-
-默认访问地址：
-
-- 用户端：`http://localhost:8088/client/home`
-- 管理端：`http://localhost:8088/login`
-- 后端健康检查：`http://localhost:8080/health`
-- Swagger UI：`http://localhost:8080/swagger-ui.html`
 
 详细部署、重建、日志、冒烟验证和数据重置说明见 `docs/docker-deployment.md`。
 
