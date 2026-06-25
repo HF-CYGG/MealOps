@@ -103,6 +103,8 @@ def check_dockerfiles_and_nginx() -> None:
         "backend runtime must use Java 17 JRE without Docker Hub anonymous pulls",
     )
     require("HEALTHCHECK" in backend_dockerfile, "backend Dockerfile must define a health check")
+    require("chown -R mealops:mealops /app/uploads /app/logs" in backend_dockerfile, "backend entrypoint must fix bind mount ownership")
+    require("su mealops -s /bin/sh -c" in backend_dockerfile, "backend entrypoint must drop privileges after fixing mount ownership")
 
     require("# syntax=docker/dockerfile" not in frontend_dockerfile, "frontend Dockerfile must not pull Docker Hub syntax images")
     require(
@@ -150,8 +152,13 @@ def check_sql_alignment() -> None:
     schema = read("sql/schema.sql")
     data = read("sql/data.sql")
     require("CREATE DATABASE IF NOT EXISTS reggie" in schema, "schema.sql must create reggie database")
+    require("SET NAMES utf8mb4;" in schema, "schema.sql must force mysql client charset to utf8mb4")
     require("USE reggie;" in schema, "schema.sql must select reggie database")
+    require("SET NAMES utf8mb4;" in data, "data.sql must force mysql client charset to utf8mb4")
     require("USE reggie;" in data, "data.sql must select reggie database")
+    require("'男'" in data, "seed employee sex value must fit employee.sex varchar(2)")
+    require("'女'" in data, "seed user/address sex values must fit sex varchar(2)")
+    require("'鐢?" not in data and "'濂?" not in data, "seed sex values must not contain mojibake that exceeds varchar(2)")
 
 
 def check_smoke_test_scripts() -> None:

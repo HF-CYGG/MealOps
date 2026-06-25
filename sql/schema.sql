@@ -2,6 +2,8 @@ CREATE DATABASE IF NOT EXISTS reggie
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+SET NAMES utf8mb4;
+
 USE reggie;
 
 DROP TABLE IF EXISTS operation_log;
