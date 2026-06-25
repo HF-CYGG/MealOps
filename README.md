@@ -147,6 +147,13 @@ npm run dev
 
 推荐使用 `docker compose` 启动完整栈；如果在图形化容器面板中手动创建容器，请按本节的端口、网络、挂载和环境变量保持一致。
 
+默认前后端联调行为：
+
+- 执行 `docker compose --env-file .env up -d --build` 会同时启动 MySQL、Redis、后端和前端。
+- 前端容器默认通过 Nginx 暴露在宿主 `${FRONTEND_PORT:-8088}`，访问 `http://localhost:8088/login` 或 `/client/home` 即可进入页面。
+- 前端代码默认请求同源 `/api`，Nginx 会自动把 `/api/` 转发到后端容器 `backend:8080`；不需要在浏览器或前端容器里手动填写后端地址。
+- 后端容器默认连接 MySQL 服务名 `mysql` 的 `3306` 端口，即 `mysql:3306/reggie`。
+
 Linux / macOS：
 
 ```bash

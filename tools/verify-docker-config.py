@@ -26,6 +26,7 @@ def check_file_presence() -> None:
         "frontend/Dockerfile",
         "frontend/.dockerignore",
         "frontend/nginx.conf",
+        "frontend/src/utils/request.js",
         "docs/docker-deployment.md",
         "tools/docker-smoke-test.ps1",
         "tools/docker-smoke-test.sh",
@@ -73,6 +74,7 @@ def check_dockerfiles_and_nginx() -> None:
     backend_dockerfile = read("Dockerfile")
     frontend_dockerfile = read("frontend/Dockerfile")
     nginx_conf = read("frontend/nginx.conf")
+    frontend_request = read("frontend/src/utils/request.js")
 
     require(backend_dockerfile.count("\nFROM ") + backend_dockerfile.startswith("FROM ") == 2, "backend Dockerfile must be multi-stage")
     require("# syntax=docker/dockerfile" not in backend_dockerfile, "backend Dockerfile must not pull Docker Hub syntax images")
@@ -101,6 +103,23 @@ def check_dockerfiles_and_nginx() -> None:
     require("try_files $uri $uri/ /index.html;" in nginx_conf, "Nginx must support Vue history routes")
     require("proxy_pass http://backend:8080/;" in nginx_conf, "Nginx must proxy /api to backend service")
     require("client_max_body_size 20m;" in nginx_conf, "Nginx upload limit must match Spring multipart max request size")
+    require(
+        "baseURL: '/api'" in frontend_request or 'baseURL: "/api"' in frontend_request,
+        "frontend must use same-origin /api so Docker Nginx can proxy requests to backend",
+    )
+
+
+def check_readme_docker_integration() -> None:
+    readme = read("README.md")
+    require("默认前后端联调行为" in readme, "README must document default frontend/backend Docker integration")
+    require(
+        "docker compose --env-file .env up -d --build" in readme,
+        "README must document the one-command Docker Compose startup",
+    )
+    require("`${FRONTEND_PORT:-8088}`" in readme, "README must document default frontend host port")
+    require("同源 `/api`" in readme, "README must document same-origin frontend API requests")
+    require("`backend:8080`" in readme, "README must document Nginx proxy target backend service")
+    require("`mysql:3306/reggie`" in readme, "README must document backend default MySQL target")
 
 
 def check_sql_alignment() -> None:
@@ -160,6 +179,7 @@ def main() -> int:
         check_compose,
         check_env_template,
         check_dockerfiles_and_nginx,
+        check_readme_docker_integration,
         check_sql_alignment,
         check_smoke_test_scripts,
         maybe_run_docker_compose_config,
