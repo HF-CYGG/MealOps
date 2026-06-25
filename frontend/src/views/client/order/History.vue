@@ -63,11 +63,11 @@
 
         <div class="pagination-container" v-if="total > 0">
           <el-pagination
-            v-model:current-page="page"
-            v-model:page-size="pageSize"
+            :current-page="page"
+            :page-size="pageSize"
             :total="total"
             layout="total, prev, pager, next"
-            @current-change="fetchOrders"
+            @update:current-page="handlePageChange"
           />
         </div>
       </div>
@@ -151,6 +151,11 @@ const fetchOrders = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handlePageChange = (val) => {
+  page.value = val
+  fetchOrders()
 }
 
 // 订单状态文本
