@@ -95,6 +95,12 @@ const routes = [
         name: 'ClientOrderHistory',
         component: () => import('@/views/client/order/History.vue'),
         meta: { title: '历史订单' }
+      },
+      {
+        path: 'address',
+        name: 'ClientAddress',
+        component: () => import('@/views/client/address/Index.vue'),
+        meta: { title: '收货地址' }
       }
     ]
   }

@@ -62,6 +62,37 @@ public class AddressBookServiceImpl extends ServiceImpl<AddressBookMapper, Addre
         updateById(addressBook);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean update(AddressBook addressBook) {
+        Long userId = currentUserId();
+        AddressBook existing = getOwnedAddress(addressBook.getId(), userId);
+        addressBook.setUserId(userId);
+        if (addressBook.getIsDefault() == null) {
+            addressBook.setIsDefault(existing.getIsDefault());
+        }
+        return updateById(addressBook);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean delete(Long id) {
+        Long userId = currentUserId();
+        getOwnedAddress(id, userId);
+        return removeById(id);
+    }
+
+    private AddressBook getOwnedAddress(Long id, Long userId) {
+        if (id == null) {
+            throw new BusinessException("Address not found");
+        }
+        AddressBook addressBook = getById(id);
+        if (addressBook == null || !userId.equals(addressBook.getUserId())) {
+            throw new BusinessException("Address not found");
+        }
+        return addressBook;
+    }
+
     private Long currentUserId() {
         Long userId = BaseContext.getCurrentId();
         if (userId == null) {

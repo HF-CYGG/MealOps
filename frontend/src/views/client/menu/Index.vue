@@ -20,9 +20,9 @@
         <el-scrollbar>
           <div
             v-for="item in categoryList"
-            :key="item.id"
-            :class="['category-item', activeCategoryId === item.id ? 'active' : '']"
-            @click="handleCategoryClick(item.id)"
+            :key="item.key"
+            :class="['category-item', activeCategoryKey === item.key ? 'active' : '']"
+            @click="handleCategoryClick(item)"
           >
             {{ item.name }}
           </div>
@@ -49,10 +49,10 @@
             </template>
             <template #default>
               <transition name="fade-slide-list" mode="out-in">
-                <div :key="activeCategoryId || 'empty'" class="dish-grid">
+                <div :key="activeCategoryKey || 'empty'" class="dish-grid">
                   <el-card
                     v-for="(dish, index) in dishList"
-                    :key="dish.id"
+                    :key="dish.cartKey"
                     class="dish-card"
                     :style="{ animationDelay: `${index * 0.04}s` }"
                     shadow="never"
@@ -79,7 +79,7 @@
                           <div class="custom-stepper-container">
                             <!-- 减号 -->
                             <transition name="roll-out">
-                              <div v-if="getDishCartNum(dish.id) > 0" 
+                              <div v-if="getProductCartNum(dish) > 0"
                                    class="stepper-btn minus"
                                    @click.stop="handleSubCart(dish)">
                                 <el-icon><Minus /></el-icon>
@@ -88,14 +88,14 @@
                             
                             <!-- 数量 -->
                             <transition name="fade-in">
-                              <div v-if="getDishCartNum(dish.id) > 0" class="stepper-num">
-                                {{ getDishCartNum(dish.id) }}
+                              <div v-if="getProductCartNum(dish) > 0" class="stepper-num">
+                                {{ getProductCartNum(dish) }}
                               </div>
                             </transition>
 
                             <!-- 加号 -->
                             <div class="stepper-btn plus" 
-                                 :class="{ 'is-big': getDishCartNum(dish.id) === 0 }"
+                                 :class="{ 'is-big': getProductCartNum(dish) === 0 }"
                                  @click.stop="handleAddCart(dish)">
                               <el-icon><Plus /></el-icon>
                             </div>
@@ -106,7 +106,7 @@
                   </el-card>
                 </div>
               </transition>
-              <el-empty v-if="dishList.length === 0" description="该分类下暂无菜品" />
+              <el-empty v-if="dishList.length === 0" description="该分类下暂无商品" />
             </template>
           </el-skeleton>
         </el-scrollbar>
@@ -116,7 +116,7 @@
     <!-- 悬浮购物车 -->
     <div class="cart-bar" @click="cartVisible = true">
       <div class="cart-icon" :class="{ 'bounce': isBouncing }">
-        <el-badge :value="totalCartNum" class="item">
+        <el-badge :value="totalCartNum" :hidden="totalCartNum === 0" class="cart-badge">
           <el-icon :size="30"><ShoppingCart /></el-icon>
         </el-badge>
       </div>
@@ -168,7 +168,7 @@
       v-model="dishDetailVisible"
       width="520px"
       class="dish-detail-dialog"
-      title="菜品详情"
+      :title="dishDetailTitle"
       :show-close="true"
       append-to-body
     >
@@ -187,7 +187,7 @@
             </span>
           </div>
           <h2>{{ selectedDish.name }}</h2>
-          <p>{{ selectedDish.description || '暂无菜品介绍' }}</p>
+          <p>{{ selectedDish.description || '暂无商品介绍' }}</p>
           <div class="dish-detail-footer">
             <span class="dish-detail-price">￥{{ selectedDish.price }}</span>
             <el-button
@@ -212,10 +212,16 @@ import { useRouter } from 'vue-router'
 import { Plus, ShoppingCart, Minus } from '@element-plus/icons-vue'
 import { getCategoryList } from '@/api/category'
 import { getDishList } from '@/api/dish'
+import { getSetmealList } from '@/api/setmeal'
 import { useCartStore } from '@/store/cart'
 import { useClientUserStore } from '@/store/clientUser'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { applyImageFallback, resolveImageUrl } from '@/utils/image'
+
+const CATEGORY_TYPE_DISH = 1
+const CATEGORY_TYPE_SETMEAL = 2
+const PRODUCT_TYPE_DISH = 'dish'
+const PRODUCT_TYPE_SETMEAL = 'setmeal'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -227,6 +233,7 @@ const guestCount = computed(() => userStore.guestCount)
 // 分类和菜品数据
 const categoryList = ref([])
 const activeCategoryId = ref(null)
+const activeCategoryType = ref(CATEGORY_TYPE_DISH)
 const dishList = ref([])
 const loading = ref(false)
 const scrollbarRef = ref(null)
@@ -238,17 +245,55 @@ const isBouncing = ref(false)
 const dishDetailVisible = ref(false)
 const selectedDish = ref(null)
 
+const toCartNumber = (value) => {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : 0
+}
+
+const normalizeCategory = (item, type) => ({
+  ...item,
+  type,
+  key: `${type}-${item.id}`
+})
+
+const normalizeProduct = (item, itemType) => ({
+  ...item,
+  itemType,
+  categoryType: itemType === PRODUCT_TYPE_SETMEAL ? CATEGORY_TYPE_SETMEAL : CATEGORY_TYPE_DISH,
+  cartKey: `${itemType}-${item.id}`,
+  price: item.price,
+  description: item.description || (itemType === PRODUCT_TYPE_SETMEAL ? '精选套餐组合' : '')
+})
+
+const buildCartPayload = (item) => {
+  const base = {
+    name: item.name,
+    amount: item.price,
+    image: item.image
+  }
+  return item.itemType === PRODUCT_TYPE_SETMEAL
+    ? { ...base, setmealId: item.id }
+    : { ...base, dishId: item.id }
+}
+
 // 计算购物车总数和总价
 const totalCartNum = computed(() => {
-  return cartList.value.reduce((total, item) => total + item.number, 0)
+  return cartList.value.reduce((total, item) => total + toCartNumber(item.number), 0)
 })
 const totalCartPrice = computed(() => {
-  return cartList.value.reduce((total, item) => total + (item.amount * item.number), 0)
+  return cartList.value.reduce((total, item) => total + (toCartNumber(item.amount) * toCartNumber(item.number)), 0)
+})
+const activeCategoryKey = computed(() => {
+  return activeCategoryId.value ? `${activeCategoryType.value}-${activeCategoryId.value}` : ''
 })
 const currentCategoryName = computed(() => {
   const categoryId = selectedDish.value?.categoryId || activeCategoryId.value
-  const category = categoryList.value.find(item => item.id === categoryId)
-  return category?.name || '推荐菜品'
+  const categoryType = selectedDish.value?.categoryType || activeCategoryType.value
+  const category = categoryList.value.find(item => item.id === categoryId && item.type === categoryType)
+  return category?.name || '推荐商品'
+})
+const dishDetailTitle = computed(() => {
+  return selectedDish.value?.itemType === PRODUCT_TYPE_SETMEAL ? '套餐详情' : '菜品详情'
 })
 
 onMounted(async () => {
@@ -259,32 +304,59 @@ onMounted(async () => {
 // 获取分类列表
 const fetchCategoryList = async () => {
   try {
-    const res = await getCategoryList({ type: 1 }) // 1表示菜品分类
-    if (res.code === 1) {
-      categoryList.value = res.data || []
-      if (categoryList.value.length > 0) {
-        activeCategoryId.value = categoryList.value[0].id
-        fetchDishList()
-      }
+    const [dishRes, setmealRes, featuredSetmealRes] = await Promise.all([
+      getCategoryList({ type: CATEGORY_TYPE_DISH }),
+      getCategoryList({ type: CATEGORY_TYPE_SETMEAL }),
+      getSetmealList({ status: 1 })
+    ])
+    const dishCategories = dishRes.code === 1 ? (dishRes.data || []) : []
+    const setmealCategories = setmealRes.code === 1 ? (setmealRes.data || []) : []
+    const featuredSetmeals = featuredSetmealRes.code === 1 ? (featuredSetmealRes.data || []) : []
+    const fallbackSetmealCategory = setmealCategories.length === 0 && featuredSetmeals.length > 0
+      ? [{ id: 'setmeal-all', name: '精选套餐', type: CATEGORY_TYPE_SETMEAL, key: `${CATEGORY_TYPE_SETMEAL}-setmeal-all`, isFallback: true }]
+      : []
+    categoryList.value = [
+      ...dishCategories.map(item => normalizeCategory(item, CATEGORY_TYPE_DISH)),
+      ...setmealCategories.map(item => normalizeCategory(item, CATEGORY_TYPE_SETMEAL)),
+      ...fallbackSetmealCategory
+    ]
+
+    if (categoryList.value.length > 0) {
+      const firstCategory = categoryList.value[0]
+      activeCategoryId.value = firstCategory.id
+      activeCategoryType.value = firstCategory.type
+      await fetchDishList()
+      return
     }
+
+    dishList.value = []
   } catch (error) {
     console.error('获取分类失败', error)
   }
 }
 
 // 点击分类联动
-const handleCategoryClick = (id) => {
-  activeCategoryId.value = id
+const handleCategoryClick = (category) => {
+  activeCategoryId.value = category.id
+  activeCategoryType.value = category.type
   fetchDishList()
 }
 
-// 获取菜品列表
+// 获取当前分类下的菜品或套餐列表
 const fetchDishList = async () => {
   loading.value = true
   try {
-    const res = await getDishList({ categoryId: activeCategoryId.value })
+    const isSetmealCategory = activeCategoryType.value === CATEGORY_TYPE_SETMEAL
+    const params = { status: 1 }
+    if (activeCategoryId.value && activeCategoryId.value !== 'setmeal-all') {
+      params.categoryId = activeCategoryId.value
+    }
+    const res = isSetmealCategory ? await getSetmealList(params) : await getDishList(params)
     if (res.code === 1) {
-      dishList.value = res.data || []
+      dishList.value = (res.data || []).map(item => normalizeProduct(
+        item,
+        isSetmealCategory ? PRODUCT_TYPE_SETMEAL : PRODUCT_TYPE_DISH
+      ))
       nextTick(() => {
         if (scrollbarRef.value) {
           scrollbarRef.value.setScrollTop(0)
@@ -304,15 +376,19 @@ const fetchCartList = async () => {
 }
 
 // 获取某个商品在购物车中的数量
-const getDishCartNum = (dishId) => {
-  const item = cartList.value.find(item => item.dishId === dishId)
-  return item ? item.number : 0
+const getProductCartNum = (product) => {
+  const item = cartList.value.find(cartItem => {
+    return product.itemType === PRODUCT_TYPE_SETMEAL
+      ? cartItem.setmealId === product.id
+      : cartItem.dishId === product.id
+  })
+  return item ? toCartNumber(item.number) : 0
 }
 
 // 减少购物车商品
 const handleSubCart = async (dish) => {
   try {
-    await cartStore.subCart({ dishId: dish.id })
+    await cartStore.subCart(buildCartPayload(dish))
     fetchCartList()
   } catch (error) {
     console.error('减少购物车商品失败', error)
@@ -322,12 +398,7 @@ const handleSubCart = async (dish) => {
 // 加入购物车
 const handleAddCart = async (dish, showBounce = true) => {
   try {
-    const res = await cartStore.addCart({
-      dishId: dish.id,
-      name: dish.name,
-      amount: dish.price,
-      image: dish.image
-    })
+    const res = await cartStore.addCart(buildCartPayload(dish))
     if (res.code === 1) {
       ElMessage.success('已加入购物车')
       fetchCartList()
@@ -794,6 +865,12 @@ const goToCheckout = () => {
   animation: elegantBounce 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.cart-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 @keyframes elegantBounce {
   0% { transform: scale(1); }
   40% { transform: scale(1.3) translateY(-4px); }
@@ -805,6 +882,11 @@ const goToCheckout = () => {
   color: #fff;
   border: none;
   font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  line-height: 18px;
+  font-size: 12px;
   box-shadow: 0 4px 12px rgba(212, 163, 115, 0.4);
 }
 

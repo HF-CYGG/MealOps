@@ -12,6 +12,14 @@ export const getSetmealPage = (params) => {
   })
 }
 
+export const getSetmealList = (params) => {
+  return request({
+    url: '/setmeal/list',
+    method: 'get',
+    params
+  })
+}
+
 // 新增套餐
 export const addSetmeal = (data) => {
   return request({

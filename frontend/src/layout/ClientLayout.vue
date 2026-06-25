@@ -26,6 +26,7 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="address">收货地址</el-dropdown-item>
                 <el-dropdown-item command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -70,6 +71,11 @@ const activeIndex = computed(() => {
 
 // 处理下拉菜单指令
 const handleCommand = async (command) => {
+  if (command === 'address') {
+    router.push('/client/address')
+    return
+  }
+
   if (command === 'logout') {
     try {
       await userLogout()
