@@ -4,6 +4,13 @@
 -->
 <template>
   <div class="login-container">
+    <button class="back-button" type="button" aria-label="返回订餐首页" @click="handleBack">
+      <el-icon :size="18">
+        <ArrowLeft />
+      </el-icon>
+      <span>返回</span>
+    </button>
+
     <el-card class="login-card" shadow="hover">
       <template #header>
         <div class="card-header">
@@ -127,7 +134,7 @@
 import { ref, reactive, computed, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Iphone, Key, User, Lock } from '@element-plus/icons-vue'
+import { ArrowLeft, Iphone, Key, User, Lock } from '@element-plus/icons-vue'
 import { userLogin } from '@/api/user'
 import { useClientUserStore } from '@/store/clientUser'
 
@@ -159,6 +166,10 @@ const submitButtonText = computed(() => {
 const isPhoneValid = computed(() => {
   return /^1[3-9]\d{9}$/.test(loginForm.phone)
 })
+
+const handleBack = () => {
+  router.push('/client/home')
+}
 
 const loginRules = reactive({
   phone: [
@@ -263,6 +274,7 @@ const handleSubmit = async () => {
 
 <style scoped>
 .login-container {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -270,6 +282,46 @@ const handleSubmit = async () => {
   background-color: #f7f9fc;
   background-image: radial-gradient(circle at 50% 0%, #e6f0ff 0%, #f7f9fc 60%);
   animation: fadeIn 0.6s ease-out;
+}
+
+.back-button {
+  position: absolute;
+  top: 28px;
+  left: 32px;
+  z-index: 2;
+  min-width: 88px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 16px;
+  border: 1px solid rgba(29, 29, 31, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #1d1d1f;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.back-button:active {
+  transform: scale(0.97);
+}
+
+.back-button:focus-visible {
+  outline: 3px solid rgba(212, 163, 115, 0.36);
+  outline-offset: 3px;
 }
 
 @keyframes fadeIn {
@@ -420,6 +472,15 @@ const handleSubmit = async () => {
     min-height: 100vh;
     height: auto;
     padding: 24px 16px;
+  }
+
+  .back-button {
+    top: 16px;
+    left: 16px;
+    min-width: 80px;
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 14px;
   }
 
   .login-card {
