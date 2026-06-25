@@ -56,6 +56,9 @@ springdoc:
 
 mealops:
   upload-dir: ${MEALOPS_UPLOAD_DIR:uploads}
+  database-initializer:
+    enabled: ${MEALOPS_DB_INIT_ENABLED:true}
+    seed-data-enabled: ${MEALOPS_DB_INIT_SEED_DATA_ENABLED:true}
   admin:
     enabled: ${MEALOPS_ADMIN_BOOTSTRAP_ENABLED:true}
     username: ${MEALOPS_ADMIN_USERNAME:admin}

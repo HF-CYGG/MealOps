@@ -14,6 +14,7 @@ COPY pom.xml .
 RUN mvn -B -DskipTests dependency:go-offline
 
 COPY src ./src
+COPY sql ./sql
 COPY --from=frontend-build /workspace/frontend/dist ./src/main/resources/static
 RUN mvn -B -DskipTests package
 

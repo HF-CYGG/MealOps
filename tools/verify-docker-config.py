@@ -78,6 +78,8 @@ def check_env_template() -> None:
         "MEALOPS_REDIS_DATA_DIR=",
         "MEALOPS_UPLOADS_DIR=",
         "MEALOPS_LOGS_DIR=",
+        "MEALOPS_DB_INIT_ENABLED=",
+        "MEALOPS_DB_INIT_SEED_DATA_ENABLED=",
         "MEALOPS_ADMIN_BOOTSTRAP_ENABLED=",
         "MEALOPS_ADMIN_USERNAME=",
         "MEALOPS_ADMIN_PASSWORD=",
@@ -104,6 +106,7 @@ def check_dockerfiles_and_nginx() -> None:
         "root Dockerfile must build Vue frontend with Node 22",
     )
     require("COPY --from=frontend-build /workspace/frontend/dist ./src/main/resources/static" in backend_dockerfile, "root Dockerfile must embed frontend dist into Spring Boot static resources")
+    require("COPY sql ./sql" in backend_dockerfile, "root Dockerfile must include SQL scripts for application startup initialization")
     require(
         "public.ecr.aws/docker/library/maven:3.9.11-eclipse-temurin-17 AS build" in backend_dockerfile,
         "backend build image must avoid Docker Hub anonymous pull limits",
@@ -136,6 +139,7 @@ def check_dockerfiles_and_nginx() -> None:
     )
     require("ApiPrefixForwardFilter" in read("src/main/java/com/cjc/mealops/config/ApiPrefixForwardFilter.java"), "single-container image must support /api-prefixed frontend requests")
     require("SpaForwardController" in read("src/main/java/com/cjc/mealops/controller/SpaForwardController.java"), "single-container image must support Vue history route fallback")
+    require("DatabaseSchemaInitializer" in read("src/main/java/com/cjc/mealops/config/DatabaseSchemaInitializer.java"), "single-container image must initialize an empty external MySQL database")
 
 
 def check_readme_docker_integration() -> None:
@@ -149,6 +153,8 @@ def check_readme_docker_integration() -> None:
     require("单容器镜像" in readme, "README must document the ACR/1Panel single project container deployment")
     require("MEALOPS_ADMIN_USERNAME" in readme, "README must document configurable initial admin username")
     require("MEALOPS_ADMIN_PASSWORD" in readme, "README must document configurable initial admin password")
+    require("MEALOPS_DB_INIT_ENABLED" in readme, "README must document application database initialization")
+    require("MEALOPS_DB_INIT_SEED_DATA_ENABLED" in readme, "README must document optional seed-data initialization")
     require("`backend:8080`" in readme, "README must document Nginx proxy target backend service")
     require("`mysql:3306/reggie`" in readme, "README must document backend default MySQL target")
     require("KEEP_RUNNING=1 sh tools/docker-smoke-test.sh" in readme, "README must recommend self-check startup on Linux/macOS")
@@ -219,6 +225,8 @@ def check_smoke_test_scripts() -> None:
         "MEALOPS_REDIS_DATA_DIR",
         "MEALOPS_UPLOADS_DIR",
         "MEALOPS_LOGS_DIR",
+        "MEALOPS_DB_INIT_ENABLED",
+        "MEALOPS_DB_INIT_SEED_DATA_ENABLED",
         "backend:8080",
     ):
         require(token in docs, f"deployment doc must document Docker setting: {token}")
