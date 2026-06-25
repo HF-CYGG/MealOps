@@ -4,15 +4,16 @@
 -->
 <template>
   <div class="login-container">
-    <button class="back-button" type="button" aria-label="返回订餐首页" @click="handleBack">
-      <el-icon :size="18">
-        <ArrowLeft />
-      </el-icon>
-      <span>返回</span>
-    </button>
-
     <el-card class="login-card" shadow="hover">
       <template #header>
+        <div class="card-topbar">
+          <button class="back-button" type="button" aria-label="返回订餐首页" @click="handleBack">
+            <el-icon :size="18">
+              <ArrowLeft />
+            </el-icon>
+            <span>返回</span>
+          </button>
+        </div>
         <div class="card-header">
           <span>MealOps 订餐</span>
         </div>
@@ -274,7 +275,6 @@ const handleSubmit = async () => {
 
 <style scoped>
 .login-container {
-  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -284,12 +284,14 @@ const handleSubmit = async () => {
   animation: fadeIn 0.6s ease-out;
 }
 
+.card-topbar {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}
+
 .back-button {
-  position: absolute;
-  top: 28px;
-  left: 32px;
-  z-index: 2;
-  min-width: 88px;
+  min-width: 82px;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -475,8 +477,6 @@ const handleSubmit = async () => {
   }
 
   .back-button {
-    top: 16px;
-    left: 16px;
     min-width: 80px;
     min-height: 44px;
     padding: 0 14px;
