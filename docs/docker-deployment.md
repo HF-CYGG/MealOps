@@ -27,6 +27,11 @@ REDIS_PORT=6379
 REDIS_DATABASE=0
 REDIS_PASSWORD=
 MEALOPS_UPLOAD_DIR=/app/uploads
+MEALOPS_ADMIN_BOOTSTRAP_ENABLED=true
+MEALOPS_ADMIN_USERNAME=admin
+MEALOPS_ADMIN_PASSWORD=admin1330
+MEALOPS_ADMIN_NAME=System Admin
+MEALOPS_ADMIN_PHONE=13800000000
 MEALOPS_JWT_SECRET=change-this-long-random-secret
 MEALOPS_JWT_TTL_HOURS=2
 LOG_PATH=/app/logs
@@ -119,9 +124,11 @@ docker compose --env-file .env ps
 
 由 `sql/data.sql` 写入：
 
-- 管理员账号：`admin`
-- 管理员密码：`admin1330`
+- 管理员账号默认：`admin`
+- 管理员密码默认：`admin1330`
 - 用户端演示手机号：`13900000000`
+
+应用启动时会读取 `MEALOPS_ADMIN_USERNAME`、`MEALOPS_ADMIN_PASSWORD`、`MEALOPS_ADMIN_NAME`、`MEALOPS_ADMIN_PHONE`，并创建或更新该管理员员工记录。也就是说，1Panel 容器环境变量中的管理端账号配置会覆盖 SQL 种子里的默认管理员。若不希望启动时维护该账号，设置 `MEALOPS_ADMIN_BOOTSTRAP_ENABLED=false`。
 
 ## 数据与文件持久化
 
@@ -146,7 +153,7 @@ Compose 使用宿主机 bind mount。目录不存在时会自动创建。
 | --- | --- | --- | --- |
 | MySQL | `3306:3306` | `${MEALOPS_MYSQL_DATA_DIR}:/var/lib/mysql`；`./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro`；`./sql/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro` | `MYSQL_ROOT_PASSWORD`、`MYSQL_DATABASE=reggie`、`TZ=Asia/Shanghai` |
 | Redis | `6379:6379` | `${MEALOPS_REDIS_DATA_DIR}:/data` | `REDIS_PASSWORD` 可留空 |
-| 后端 | `8080:8080` | `${MEALOPS_UPLOADS_DIR}:/app/uploads`；`${MEALOPS_LOGS_DIR}:/app/logs` | `MYSQL_URL`、`MYSQL_USERNAME`、`MYSQL_PASSWORD`、`REDIS_HOST`、`REDIS_PORT`、`REDIS_DATABASE`、`REDIS_PASSWORD`、`MEALOPS_UPLOAD_DIR`、`MEALOPS_JWT_SECRET`、`LOG_PATH`、`TZ` |
+| 后端 | `8080:8080` | `${MEALOPS_UPLOADS_DIR}:/app/uploads`；`${MEALOPS_LOGS_DIR}:/app/logs` | `MYSQL_URL`、`MYSQL_USERNAME`、`MYSQL_PASSWORD`、`REDIS_HOST`、`REDIS_PORT`、`REDIS_DATABASE`、`REDIS_PASSWORD`、`MEALOPS_UPLOAD_DIR`、`MEALOPS_ADMIN_USERNAME`、`MEALOPS_ADMIN_PASSWORD`、`MEALOPS_JWT_SECRET`、`LOG_PATH`、`TZ` |
 | 前端 | `8088:80` | 无需额外挂载 | 与后端在同一网络，Nginx 默认代理 `backend:8080` |
 
 后端环境变量参考：
@@ -160,6 +167,11 @@ REDIS_PORT=6379
 REDIS_DATABASE=0
 REDIS_PASSWORD=
 MEALOPS_UPLOAD_DIR=/app/uploads
+MEALOPS_ADMIN_BOOTSTRAP_ENABLED=true
+MEALOPS_ADMIN_USERNAME=admin
+MEALOPS_ADMIN_PASSWORD=admin1330
+MEALOPS_ADMIN_NAME=System Admin
+MEALOPS_ADMIN_PHONE=13800000000
 MEALOPS_JWT_SECRET=change-this-long-random-secret
 MEALOPS_JWT_TTL_HOURS=2
 LOG_PATH=/app/logs

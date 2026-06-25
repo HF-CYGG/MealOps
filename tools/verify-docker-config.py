@@ -78,6 +78,11 @@ def check_env_template() -> None:
         "MEALOPS_REDIS_DATA_DIR=",
         "MEALOPS_UPLOADS_DIR=",
         "MEALOPS_LOGS_DIR=",
+        "MEALOPS_ADMIN_BOOTSTRAP_ENABLED=",
+        "MEALOPS_ADMIN_USERNAME=",
+        "MEALOPS_ADMIN_PASSWORD=",
+        "MEALOPS_ADMIN_NAME=",
+        "MEALOPS_ADMIN_PHONE=",
         "MEALOPS_JWT_SECRET=",
     ):
         require(key in env_example, f"missing env template key: {key}")
@@ -142,6 +147,8 @@ def check_readme_docker_integration() -> None:
     require("`${FRONTEND_PORT:-8088}`" in readme, "README must document default frontend host port")
     require("`/api/`" in readme, "README must document same-origin frontend API requests")
     require("单容器镜像" in readme, "README must document the ACR/1Panel single project container deployment")
+    require("MEALOPS_ADMIN_USERNAME" in readme, "README must document configurable initial admin username")
+    require("MEALOPS_ADMIN_PASSWORD" in readme, "README must document configurable initial admin password")
     require("`backend:8080`" in readme, "README must document Nginx proxy target backend service")
     require("`mysql:3306/reggie`" in readme, "README must document backend default MySQL target")
     require("KEEP_RUNNING=1 sh tools/docker-smoke-test.sh" in readme, "README must recommend self-check startup on Linux/macOS")

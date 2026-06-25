@@ -56,6 +56,12 @@ springdoc:
 
 mealops:
   upload-dir: ${MEALOPS_UPLOAD_DIR:uploads}
+  admin:
+    enabled: ${MEALOPS_ADMIN_BOOTSTRAP_ENABLED:true}
+    username: ${MEALOPS_ADMIN_USERNAME:admin}
+    password: ${MEALOPS_ADMIN_PASSWORD:admin1330}
+    name: ${MEALOPS_ADMIN_NAME:System Admin}
+    phone: ${MEALOPS_ADMIN_PHONE:13800000000}
   jwt:
     secret: ${MEALOPS_JWT_SECRET:mealops-local-secret-change-me}
     ttl-hours: ${MEALOPS_JWT_TTL_HOURS:2}

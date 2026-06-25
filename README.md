@@ -172,6 +172,11 @@ REDIS_PORT=6379
 REDIS_DATABASE=0
 REDIS_PASSWORD=
 MEALOPS_UPLOAD_DIR=/app/uploads
+MEALOPS_ADMIN_BOOTSTRAP_ENABLED=true
+MEALOPS_ADMIN_USERNAME=admin
+MEALOPS_ADMIN_PASSWORD=admin1330
+MEALOPS_ADMIN_NAME=System Admin
+MEALOPS_ADMIN_PHONE=13800000000
 MEALOPS_JWT_SECRET=change-this-long-random-secret
 MEALOPS_JWT_TTL_HOURS=2
 LOG_PATH=/app/logs
@@ -284,7 +289,7 @@ Compose 会创建默认 bridge 网络，后端通过服务名访问依赖：
 | --- | --- | --- | --- |
 | MySQL | `${MYSQL_PORT:-3306}:3306` | `${MEALOPS_MYSQL_DATA_DIR}:/var/lib/mysql`；`./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro`；`./sql/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro` | `MYSQL_ROOT_PASSWORD`、`MYSQL_DATABASE=reggie`、`TZ=Asia/Shanghai` |
 | Redis | `${REDIS_PORT:-6379}:6379` | `${MEALOPS_REDIS_DATA_DIR}:/data` | `REDIS_PASSWORD` 可留空 |
-| 后端 | `${BACKEND_PORT:-8080}:8080` | `${MEALOPS_UPLOADS_DIR}:/app/uploads`；`${MEALOPS_LOGS_DIR}:/app/logs` | `MYSQL_URL`、`MYSQL_USERNAME`、`MYSQL_PASSWORD`、`REDIS_HOST`、`REDIS_PORT`、`REDIS_DATABASE`、`REDIS_PASSWORD`、`MEALOPS_UPLOAD_DIR`、`MEALOPS_JWT_SECRET`、`LOG_PATH`、`TZ` |
+| 后端 | `${BACKEND_PORT:-8080}:8080` | `${MEALOPS_UPLOADS_DIR}:/app/uploads`；`${MEALOPS_LOGS_DIR}:/app/logs` | `MYSQL_URL`、`MYSQL_USERNAME`、`MYSQL_PASSWORD`、`REDIS_HOST`、`REDIS_PORT`、`REDIS_DATABASE`、`REDIS_PASSWORD`、`MEALOPS_UPLOAD_DIR`、`MEALOPS_ADMIN_USERNAME`、`MEALOPS_ADMIN_PASSWORD`、`MEALOPS_JWT_SECRET`、`LOG_PATH`、`TZ` |
 | 前端 | `${FRONTEND_PORT:-8088}:80` | 无需额外挂载 | 与后端在同一网络，Nginx 默认代理 `backend:8080` |
 
 后端手动容器推荐环境变量：
@@ -298,6 +303,11 @@ REDIS_PORT=6379
 REDIS_DATABASE=0
 REDIS_PASSWORD=
 MEALOPS_UPLOAD_DIR=/app/uploads
+MEALOPS_ADMIN_BOOTSTRAP_ENABLED=true
+MEALOPS_ADMIN_USERNAME=admin
+MEALOPS_ADMIN_PASSWORD=admin1330
+MEALOPS_ADMIN_NAME=System Admin
+MEALOPS_ADMIN_PHONE=13800000000
 MEALOPS_JWT_SECRET=change-this-long-random-secret
 MEALOPS_JWT_TTL_HOURS=2
 LOG_PATH=/app/logs
@@ -327,6 +337,11 @@ TZ=Asia/Shanghai
 | `MEALOPS_REDIS_DATA_DIR` | `./docker-data/redis` | Redis 容器挂载 | 宿主机 Redis 数据目录 |
 | `MEALOPS_UPLOADS_DIR` | `./docker-data/uploads` | 后端容器挂载 | 宿主机上传文件目录 |
 | `MEALOPS_LOGS_DIR` | `./docker-data/logs` | 后端容器挂载 | 宿主机后端日志目录 |
+| `MEALOPS_ADMIN_BOOTSTRAP_ENABLED` | `true` | 后端容器 | 是否在应用启动时创建或更新管理端初始账号 |
+| `MEALOPS_ADMIN_USERNAME` | `admin` | 后端容器 | 管理端初始账号；启动时按该账号创建或更新员工记录 |
+| `MEALOPS_ADMIN_PASSWORD` | `admin1330` | 后端容器 | 管理端初始密码；启动时写入 MD5 摘要，不会原文入库 |
+| `MEALOPS_ADMIN_NAME` | `System Admin` | 后端容器 | 管理员显示姓名 |
+| `MEALOPS_ADMIN_PHONE` | `13800000000` | 后端容器 | 管理员手机号 |
 | `MEALOPS_JWT_SECRET` | `change-this-secret-before-production` | 后端容器 | JWT 签名密钥，生产环境必须修改 |
 | `MEALOPS_JWT_TTL_HOURS` | `2` | 后端容器 | JWT 有效小时数 |
 
@@ -350,10 +365,11 @@ TZ=Asia/Shanghai
 
 初始化账号：
 
-- 管理员账号：`admin`
-- 管理员密码：`admin1330`
+- 管理员账号默认：`admin`
+- 管理员密码默认：`admin1330`
 - 用户端演示手机号：`13900000000`
-- 数据库中的管理员密码摘要：`849199be4c873a9ab895576681da12f3`
+
+容器启动时会读取 `MEALOPS_ADMIN_USERNAME`、`MEALOPS_ADMIN_PASSWORD`、`MEALOPS_ADMIN_NAME`、`MEALOPS_ADMIN_PHONE` 并创建或更新该管理员账号。生产或演示部署时，推荐在 1Panel 环境变量中直接改这些值；如果不希望启动时覆盖账号，可设置 `MEALOPS_ADMIN_BOOTSTRAP_ENABLED=false`。
 
 示例数据包含分类、菜品、口味、套餐、用户、地址、购物车、订单和操作日志。
 
