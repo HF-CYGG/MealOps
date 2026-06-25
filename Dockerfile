@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/node:22-alpine AS frontend-build
+FROM node:22-alpine AS frontend-build
 WORKDIR /workspace/frontend
 
 COPY frontend/package.json frontend/package-lock.json ./
@@ -7,7 +7,7 @@ RUN npm ci
 COPY frontend ./
 RUN npm run build
 
-FROM public.ecr.aws/docker/library/maven:3.9.11-eclipse-temurin-17 AS build
+FROM maven:3.9.11-eclipse-temurin-17 AS build
 WORKDIR /workspace
 
 COPY pom.xml .
@@ -18,7 +18,7 @@ COPY sql ./sql
 COPY --from=frontend-build /workspace/frontend/dist ./src/main/resources/static
 RUN mvn -B -DskipTests package
 
-FROM public.ecr.aws/docker/library/eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 ENV TZ=Asia/Shanghai \
