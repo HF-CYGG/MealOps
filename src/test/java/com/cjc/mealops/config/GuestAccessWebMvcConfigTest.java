@@ -24,6 +24,7 @@ class GuestAccessWebMvcConfigTest {
         assertTrue(excludePatterns.contains("/dish/list"));
         assertTrue(excludePatterns.contains("/setmeal/list"));
         assertTrue(excludePatterns.contains("/common/download"));
+        assertTrue(excludePatterns.contains("/favicon.svg"));
     }
 
     @Test
