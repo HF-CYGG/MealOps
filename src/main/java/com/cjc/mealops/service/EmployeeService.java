@@ -6,6 +6,8 @@ import com.cjc.mealops.entity.Employee;
 import com.cjc.mealops.vo.EmployeeLoginVO;
 
 public interface EmployeeService extends IService<Employee> {
+    boolean create(Employee employee);
+
     Employee login(String username, String password);
 
     EmployeeLoginVO login(EmployeeLoginDTO loginDTO);

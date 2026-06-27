@@ -1,6 +1,7 @@
 package com.cjc.mealops.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.cjc.mealops.common.BaseContext;
 import com.cjc.mealops.common.BusinessException;
 import com.cjc.mealops.dto.EmployeeLoginDTO;
 import com.cjc.mealops.entity.Employee;
@@ -10,11 +11,15 @@ import com.cjc.mealops.service.LoginSecurityService;
 import com.cjc.mealops.util.JwtUtils;
 import com.cjc.mealops.util.Md5Utils;
 import com.cjc.mealops.vo.EmployeeLoginVO;
+import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
 public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> implements EmployeeService {
+    private static final String DEFAULT_PASSWORD = "123456";
+    private static final long SYSTEM_USER_ID = 0L;
+
     private final EmployeeMapper employeeMapper;
     private final LoginSecurityService loginSecurityService;
     private final JwtUtils jwtUtils;
@@ -25,6 +30,22 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         this.employeeMapper = employeeMapper;
         this.loginSecurityService = loginSecurityService;
         this.jwtUtils = jwtUtils;
+    }
+
+    @Override
+    public boolean create(Employee employee) {
+        LocalDateTime now = LocalDateTime.now();
+        Long operatorId = BaseContext.getCurrentId() == null ? SYSTEM_USER_ID : BaseContext.getCurrentId();
+
+        employee.setPassword(Md5Utils.digest(DEFAULT_PASSWORD));
+        if (employee.getStatus() == null) {
+            employee.setStatus(1);
+        }
+        employee.setCreateTime(now);
+        employee.setUpdateTime(now);
+        employee.setCreateUser(operatorId);
+        employee.setUpdateUser(operatorId);
+        return employeeMapper.insert(employee) > 0;
     }
 
     @Override
