@@ -5,7 +5,9 @@ import com.cjc.mealops.common.BaseContext;
 import com.cjc.mealops.common.BusinessException;
 import com.cjc.mealops.entity.AddressBook;
 import com.cjc.mealops.mapper.AddressBookMapper;
+import com.cjc.mealops.mapper.OrdersMapper;
 import com.cjc.mealops.service.AddressBookService;
+import java.io.Serializable;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AddressBookServiceImpl extends ServiceImpl<AddressBookMapper, AddressBook>
         implements AddressBookService {
+    private final OrdersMapper ordersMapper;
+
+    public AddressBookServiceImpl(OrdersMapper ordersMapper) {
+        this.ordersMapper = ordersMapper;
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -35,6 +42,19 @@ public class AddressBookServiceImpl extends ServiceImpl<AddressBookMapper, Addre
         return lambdaQuery()
                 .eq(AddressBook::getUserId, userId)
                 .list();
+    }
+
+    @Override
+    public AddressBook getById(Serializable id) {
+        Long userId = currentUserId();
+        if (id == null) {
+            throw new BusinessException("Address not found");
+        }
+        AddressBook addressBook = super.getById(id);
+        if (addressBook == null || !userId.equals(addressBook.getUserId())) {
+            throw new BusinessException("Address not found");
+        }
+        return addressBook;
     }
 
     @Override
@@ -79,7 +99,11 @@ public class AddressBookServiceImpl extends ServiceImpl<AddressBookMapper, Addre
     public boolean delete(Long id) {
         Long userId = currentUserId();
         getOwnedAddress(id, userId);
-        return removeById(id);
+        ordersMapper.clearAddressBookReference(userId, id);
+        if (!removeById(id)) {
+            throw new BusinessException("Address delete failed");
+        }
+        return true;
     }
 
     private AddressBook getOwnedAddress(Long id, Long userId) {

@@ -10,6 +10,9 @@ import { useClientUserStore } from '@/store/clientUser'
 import { useUserStore } from '@/store/user'
 import { isAuthFailureResponse, shouldRedirectAfterClientAuthFailure } from '@/utils/auth'
 
+const AUTH_FAILURE_MESSAGE = '登录状态已失效，请重新登录'
+const UNAUTHORIZED_MESSAGE = '未授权，请重新登录'
+
 // 创建axios实例
 const request = axios.create({
   baseURL: '/api', // 基础路径，配合vite的proxy代理
@@ -26,6 +29,29 @@ const clearClientAuthState = () => {
 const clearAdminAuthState = () => {
   const userStore = useUserStore()
   userStore.clearUserInfo()
+}
+
+export const resolveHttpErrorHandling = (status, responseData) => {
+  if (isAuthFailureResponse(status, responseData)) {
+    return { kind: 'authFailure', message: AUTH_FAILURE_MESSAGE }
+  }
+
+  if (status !== 401 && responseData?.msg) {
+    return { kind: 'httpError', message: responseData.msg }
+  }
+
+  switch (status) {
+    case 401:
+      return { kind: 'unauthorized', message: UNAUTHORIZED_MESSAGE }
+    case 403:
+      return { kind: 'httpError', message: '拒绝访问' }
+    case 404:
+      return { kind: 'httpError', message: '请求地址错误' }
+    case 500:
+      return { kind: 'httpError', message: '服务器内部错误' }
+    default:
+      return { kind: 'httpError', message: `请求错误 (${status})` }
+  }
 }
 
 // 请求拦截器
@@ -73,9 +99,10 @@ request.interceptors.response.use(
       const responseData = error.response.data
 
       // 后端当前会把部分登录失效场景返回为 400，因此这里需要把鉴权语义单独识别出来。
-      if (isAuthFailureResponse(error.response.status, responseData)) {
-        msg = '登录状态已失效，请重新登录'
+      const errorHandling = resolveHttpErrorHandling(error.response.status, responseData)
+      msg = errorHandling.message
 
+      if (errorHandling.kind === 'authFailure') {
         if (isClient) {
           clearClientAuthState()
 
@@ -94,33 +121,19 @@ request.interceptors.response.use(
         return Promise.reject(error)
       }
 
-      switch (error.response.status) {
-        case 401:
-          msg = '未授权，请重新登录'
-          // 这里保留 401 的兜底处理，兼容后端后续改成更标准的未授权状态码。
-          if (isClient) {
-            clearClientAuthState()
-            if (currentPath !== '/client/login') {
-              window.location.href = `/client/login?redirect=${encodeURIComponent(currentPath)}`
-            }
-          } else {
-            clearAdminAuthState()
-            if (currentPath !== '/login') {
-              window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
-            }
+      if (errorHandling.kind === 'unauthorized') {
+        // 这里保留 401 的兜底处理，兼容后端后续改成更标准的未授权状态码。
+        if (isClient) {
+          clearClientAuthState()
+          if (currentPath !== '/client/login') {
+            window.location.href = `/client/login?redirect=${encodeURIComponent(currentPath)}`
           }
-          break
-        case 403:
-          msg = '拒绝访问'
-          break
-        case 404:
-          msg = '请求地址错误'
-          break
-        case 500:
-          msg = '服务器内部错误'
-          break
-        default:
-          msg = `请求错误 (${error.response.status})`
+        } else {
+          clearAdminAuthState()
+          if (currentPath !== '/login') {
+            window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
+          }
+        }
       }
     } else if (error.message.includes('timeout')) {
       msg = '请求超时'
