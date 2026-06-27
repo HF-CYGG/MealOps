@@ -48,8 +48,8 @@
     <!-- 分页 -->
     <div class="pagination-container">
       <el-pagination
-        :current-page="page"
-        :page-size="pageSize"
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
         :page-sizes="[10, 20, 50]"
         layout="total, sizes, prev, pager, next, jumper"
         :total="total"

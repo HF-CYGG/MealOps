@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cjc.mealops.common.BaseContext;
 import com.cjc.mealops.common.BusinessException;
+import com.cjc.mealops.common.AuthUtils;
 import com.cjc.mealops.dto.CartItem;
 import com.cjc.mealops.dto.OrdersSubmitDTO;
 import com.cjc.mealops.entity.AddressBook;
@@ -23,11 +24,13 @@ import com.cjc.mealops.service.OrderCalculator;
 import com.cjc.mealops.service.OrderService;
 import com.cjc.mealops.service.ShoppingCartService;
 import com.cjc.mealops.vo.OrderSubmitVO;
+import com.cjc.mealops.vo.OrderVO;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.BeanUtils;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
@@ -138,6 +141,31 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
     @Override
     public Object userPage(Map<String, Object> params) {
         return pageByCurrentUser(params);
+    }
+
+    @Override
+    public OrderVO detail(Long id) {
+        Orders orders = getRequiredOrder(id);
+        requireDetailPermission(orders);
+        List<OrderDetail> details = orderDetailMapper.selectList(
+                new LambdaQueryWrapper<OrderDetail>().eq(OrderDetail::getOrderId, id));
+        OrderVO orderVO = new OrderVO();
+        BeanUtils.copyProperties(orders, orderVO);
+        orderVO.setOrderDetailList(details);
+        return orderVO;
+    }
+
+    private void requireDetailPermission(Orders orders) {
+        if (AuthUtils.isEmployee()) {
+            return;
+        }
+        if (!AuthUtils.ROLE_USER.equals(BaseContext.getCurrentRole())) {
+            throw new BusinessException("Permission denied");
+        }
+        Long currentId = BaseContext.getCurrentId();
+        if (currentId == null || !currentId.equals(orders.getUserId())) {
+            throw new BusinessException("Order not found");
+        }
     }
 
     @Override

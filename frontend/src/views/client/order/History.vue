@@ -63,8 +63,8 @@
 
         <div class="pagination-container" v-if="total > 0">
           <el-pagination
-            :current-page="page"
-            :page-size="pageSize"
+            v-model:current-page="page"
+            v-model:page-size="pageSize"
             :total="total"
             layout="total, prev, pager, next"
             @update:current-page="handlePageChange"

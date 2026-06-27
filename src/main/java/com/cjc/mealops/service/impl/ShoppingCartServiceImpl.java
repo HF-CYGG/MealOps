@@ -59,9 +59,11 @@ public class ShoppingCartServiceImpl extends ServiceImpl<ShoppingCartMapper, Sho
     @Transactional(rollbackFor = Exception.class)
     public ShoppingCart add(CartItem cartItem) {
         Long userId = requiredCurrentUserId();
+        int quantity = normalizedQuantity(cartItem.number());
         ShoppingCart existing = findExisting(userId, cartItem.dishId(), cartItem.setmealId(), null);
         if (existing != null) {
-            existing.setNumber(existing.getNumber() + cartItem.number());
+            int current = existing.getNumber() == null ? 0 : existing.getNumber();
+            existing.setNumber(current + quantity);
             updateById(existing);
             return existing;
         }
@@ -72,7 +74,7 @@ public class ShoppingCartServiceImpl extends ServiceImpl<ShoppingCartMapper, Sho
         item.setSetmealId(cartItem.setmealId());
         item.setName(cartItem.name());
         item.setAmount(cartItem.amount());
-        item.setNumber(cartItem.number());
+        item.setNumber(quantity);
         item.setCreateTime(LocalDateTime.now());
         save(item);
         return item;
@@ -172,6 +174,10 @@ public class ShoppingCartServiceImpl extends ServiceImpl<ShoppingCartMapper, Sho
         }
         item.setAmount(BigDecimal.ZERO);
         throw new BusinessException("Dish or setmeal id is required");
+    }
+
+    private int normalizedQuantity(Integer number) {
+        return number == null || number < 1 ? 1 : number;
     }
 
     private Long requiredCurrentUserId() {

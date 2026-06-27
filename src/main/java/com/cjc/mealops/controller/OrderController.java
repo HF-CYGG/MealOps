@@ -1,6 +1,10 @@
 package com.cjc.mealops.controller;
 
 import com.cjc.mealops.common.R;
+import com.cjc.mealops.dto.OrdersSubmitDTO;
+import com.cjc.mealops.service.OrderService;
+import com.cjc.mealops.vo.OrderVO;
+import com.cjc.mealops.vo.OrderSubmitVO;
 import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,14 +20,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/order")
 public class OrderController {
     private final ApiInvokeSupport api;
+    private final OrderService orderService;
 
-    public OrderController(ApiInvokeSupport api) {
+    public OrderController(ApiInvokeSupport api, OrderService orderService) {
         this.api = api;
+        this.orderService = orderService;
     }
 
     @PostMapping("/submit")
-    public R<Object> submit(@RequestBody Map<String, Object> body) {
-        return R.success(api.invoke("orderService", List.of("submit", "create"), body));
+    public R<OrderSubmitVO> submit(@RequestBody OrdersSubmitDTO body) {
+        return R.success(orderService.submit(body));
     }
 
     @GetMapping("/page")
@@ -42,8 +48,8 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public R<Object> getById(@PathVariable Long id) {
-        return R.success(api.invoke("orderService", List.of("getById", "detail"), id));
+    public R<OrderVO> getById(@PathVariable Long id) {
+        return R.success(orderService.detail(id));
     }
 
     @PutMapping("/cancel/{id}")

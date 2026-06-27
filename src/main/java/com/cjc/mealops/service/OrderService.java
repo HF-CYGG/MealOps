@@ -3,11 +3,14 @@ package com.cjc.mealops.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.cjc.mealops.dto.OrdersSubmitDTO;
 import com.cjc.mealops.entity.Orders;
+import com.cjc.mealops.vo.OrderVO;
 import com.cjc.mealops.vo.OrderSubmitVO;
 import java.util.Map;
 
 public interface OrderService extends IService<Orders> {
     OrderSubmitVO submit(OrdersSubmitDTO ordersSubmitDTO);
+
+    OrderVO detail(Long id);
 
     Object userPage(Map<String, Object> params);
 
