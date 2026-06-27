@@ -222,6 +222,7 @@ const CATEGORY_TYPE_DISH = 1
 const CATEGORY_TYPE_SETMEAL = 2
 const PRODUCT_TYPE_DISH = 'dish'
 const PRODUCT_TYPE_SETMEAL = 'setmeal'
+const CHECKOUT_PATH = '/client/order/submit'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -467,7 +468,16 @@ const handleCleanCart = () => {
 
 // 去结算
 const goToCheckout = () => {
-  router.push('/client/order/submit')
+  if (!userStore.token) {
+    ElMessage.warning('请先登录后再下单')
+    router.push({
+      path: '/client/login',
+      query: { redirect: CHECKOUT_PATH }
+    })
+    return
+  }
+
+  router.push(CHECKOUT_PATH)
 }
 </script>
 

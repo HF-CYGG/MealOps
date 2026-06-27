@@ -138,10 +138,12 @@ import { ElMessage } from 'element-plus'
 import { ArrowLeft, Iphone, Key, User, Lock } from '@element-plus/icons-vue'
 import { userLogin } from '@/api/user'
 import { useClientUserStore } from '@/store/clientUser'
+import { useCartStore } from '@/store/cart'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useClientUserStore()
+const cartStore = useCartStore()
 
 const loginFormRef = ref(null)
 const loading = ref(false)
@@ -259,6 +261,7 @@ const handleSubmit = async () => {
             phone: activeTab.value === 'register' ? loginForm.regPhone : (activeTab.value === 'pwd' ? loginForm.username : loginForm.phone), 
             ...res.data 
           })
+          await cartStore.syncCartToServer()
           
           const redirect = route.query.redirect || '/client/menu'
           router.push(redirect)

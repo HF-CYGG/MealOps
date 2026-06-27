@@ -74,6 +74,9 @@
         <el-form-item label="账号" prop="username">
           <el-input v-model="form.username" placeholder="请输入账号" :disabled="dialogType === 'edit'" />
         </el-form-item>
+        <el-form-item v-if="dialogType === 'add'" label="密码" prop="password">
+          <el-input v-model="form.password" type="password" placeholder="请输入登录密码" show-password />
+        </el-form-item>
         <el-form-item label="员工姓名" prop="name">
           <el-input v-model="form.name" placeholder="请输入员工姓名" />
         </el-form-item>
@@ -130,6 +133,7 @@ const formRef = ref(null)
 const form = reactive({
   id: '',
   username: '',
+  password: '',
   name: '',
   phone: '',
   sex: '1',
@@ -139,13 +143,15 @@ const form = reactive({
 // 验证规则
 const rules = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
+  password: [
+    { required: true, message: '请输入登录密码', trigger: 'blur' },
+    { min: 6, message: '密码长度不能少于 6 位', trigger: 'blur' }
+  ],
   name: [{ required: true, message: '请输入员工姓名', trigger: 'blur' }],
   phone: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
     { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
   ],
   idNumber: [
-    { required: true, message: '请输入身份证号', trigger: 'blur' },
     { pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/, message: '请输入正确的身份证号', trigger: 'blur' }
   ]
 }
@@ -202,6 +208,7 @@ const handleEdit = (row) => {
   Object.assign(form, {
     id: row.id,
     username: row.username,
+    password: '',
     name: row.name,
     phone: row.phone,
     sex: row.sex,
@@ -217,11 +224,19 @@ const submitForm = async () => {
     if (valid) {
       submitLoading.value = true
       try {
+        const payload = {
+          ...form,
+          phone: form.phone || undefined,
+          idNumber: form.idNumber || undefined
+        }
+        if (dialogType.value === 'edit') {
+          delete payload.password
+        }
         let res
         if (dialogType.value === 'add') {
-          res = await addEmployee(form)
+          res = await addEmployee(payload)
         } else {
-          res = await updateEmployee(form)
+          res = await updateEmployee(payload)
         }
         if (res.code === 1) {
           ElMessage.success(dialogType.value === 'add' ? '新增成功' : '编辑成功')
@@ -247,6 +262,7 @@ const resetForm = () => {
   Object.assign(form, {
     id: '',
     username: '',
+    password: '',
     name: '',
     phone: '',
     sex: '1',

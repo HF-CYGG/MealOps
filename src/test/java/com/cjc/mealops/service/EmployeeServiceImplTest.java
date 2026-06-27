@@ -36,20 +36,44 @@ class EmployeeServiceImplTest {
         Employee employee = new Employee();
         employee.setUsername("cashier");
         employee.setName("Cashier");
-        employee.setPhone("13900000002");
+        employee.setPassword("cashier123");
         employee.setSex("1");
-        employee.setIdNumber("110101199001011234");
 
         assertThat(service.create(employee)).isTrue();
 
         ArgumentCaptor<Employee> captor = ArgumentCaptor.forClass(Employee.class);
         verify(mapper).insert(captor.capture());
         Employee saved = captor.getValue();
-        assertThat(saved.getPassword()).isEqualTo(Md5Utils.digest("123456"));
+        assertThat(saved.getPassword()).isEqualTo(Md5Utils.digest("cashier123"));
+        assertThat(saved.getPhone()).isNull();
+        assertThat(saved.getIdNumber()).isNull();
         assertThat(saved.getStatus()).isEqualTo(1);
         assertThat(saved.getCreateUser()).isEqualTo(99L);
         assertThat(saved.getUpdateUser()).isEqualTo(99L);
         assertThat(saved.getCreateTime()).isNotNull();
         assertThat(saved.getUpdateTime()).isNotNull();
+    }
+
+    @Test
+    void loginAcceptsUsernamePhoneOrIdNumberAsIdentifier() {
+        EmployeeMapper mapper = mock(EmployeeMapper.class);
+        LoginSecurityService loginSecurityService = mock(LoginSecurityService.class);
+        Employee employee = new Employee();
+        employee.setId(7L);
+        employee.setUsername("cashier");
+        employee.setPassword(Md5Utils.digest("cashier123"));
+        employee.setStatus(1);
+        when(mapper.selectByLoginIdentifier("13900000002")).thenReturn(employee);
+        EmployeeServiceImpl service = new EmployeeServiceImpl(
+                mapper,
+                loginSecurityService,
+                mock(JwtUtils.class)
+        );
+
+        Employee loggedIn = service.login("13900000002", "cashier123");
+
+        assertThat(loggedIn).isSameAs(employee);
+        verify(mapper).selectByLoginIdentifier("13900000002");
+        verify(loginSecurityService).clear("13900000002");
     }
 }

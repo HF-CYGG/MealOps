@@ -113,7 +113,7 @@ const router = createRouter({
 })
 
 // 白名单路由
-const whiteList = ['/login', '/client/login', '/client/home', '/client/menu', '/client/order/submit']
+const whiteList = ['/login', '/client/login', '/client/home', '/client/menu']
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
@@ -139,7 +139,7 @@ router.beforeEach((to, from, next) => {
       if (whiteList.includes(to.path)) {
         next()
       } else {
-        next(`/client/login?redirect=${to.path}`)
+        next({ path: '/client/login', query: { redirect: to.fullPath } })
       }
     }
   } else {
@@ -161,7 +161,7 @@ router.beforeEach((to, from, next) => {
         next()
       } else {
         // 否则全部重定向到登录页
-        next(`/login?redirect=${to.path}`)
+        next({ path: '/login', query: { redirect: to.fullPath } })
       }
     }
   }

@@ -322,6 +322,15 @@ const saveDeliveryInfo = () => {
   localStorage.setItem(getDeliveryInfoStorageKey(), JSON.stringify(info))
 }
 
+const redirectToClientLogin = () => {
+  saveDeliveryInfo()
+  localStorage.setItem(ORDER_CONTEXT_KEY, JSON.stringify(pickDeliveryInfo(orderForm)))
+  router.push({
+    path: '/client/login',
+    query: { redirect: router.currentRoute.value.fullPath || '/client/order/submit' }
+  })
+}
+
 const fetchCartList = async () => {
   try {
     cartList.value = await cartStore.fetchCartList()
@@ -370,10 +379,8 @@ const handleSubmit = async () => {
 
   // 检查是否登录
   if (!userStore.token) {
-    // 保存上下文，登录后继续提交时可自动恢复。
-    saveDeliveryInfo()
-    localStorage.setItem(ORDER_CONTEXT_KEY, JSON.stringify(pickDeliveryInfo(orderForm)))
-    loginDialogVisible.value = true
+    ElMessage.warning('请先登录后再下单')
+    redirectToClientLogin()
     return
   }
 

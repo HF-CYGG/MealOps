@@ -17,7 +17,6 @@ import org.springframework.util.StringUtils;
 
 @Service
 public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> implements EmployeeService {
-    private static final String DEFAULT_PASSWORD = "123456";
     private static final long SYSTEM_USER_ID = 0L;
 
     private final EmployeeMapper employeeMapper;
@@ -34,10 +33,15 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
 
     @Override
     public boolean create(Employee employee) {
+        if (!StringUtils.hasText(employee.getPassword())) {
+            throw new BusinessException("Password is required");
+        }
         LocalDateTime now = LocalDateTime.now();
         Long operatorId = BaseContext.getCurrentId() == null ? SYSTEM_USER_ID : BaseContext.getCurrentId();
 
-        employee.setPassword(Md5Utils.digest(DEFAULT_PASSWORD));
+        employee.setPassword(Md5Utils.digest(employee.getPassword().trim()));
+        employee.setPhone(trimToNull(employee.getPhone()));
+        employee.setIdNumber(trimToNull(employee.getIdNumber()));
         if (employee.getStatus() == null) {
             employee.setStatus(1);
         }
@@ -53,20 +57,21 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
             throw new BusinessException("Username and password are required");
         }
-        if (loginSecurityService.isLocked(username)) {
+        String identifier = username.trim();
+        if (loginSecurityService.isLocked(identifier)) {
             throw new BusinessException("Account is locked");
         }
 
-        Employee employee = employeeMapper.selectByUsername(username);
+        Employee employee = employeeMapper.selectByLoginIdentifier(identifier);
         if (employee == null || !Md5Utils.digest(password).equals(employee.getPassword())) {
-            loginSecurityService.recordFailure(username);
+            loginSecurityService.recordFailure(identifier);
             throw new BusinessException("Invalid username or password");
         }
         if (employee.getStatus() != null && employee.getStatus() == 0) {
             throw new BusinessException("Account is disabled");
         }
 
-        loginSecurityService.clear(username);
+        loginSecurityService.clear(identifier);
         return employee;
     }
 
@@ -88,5 +93,9 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         employee.setId(id);
         employee.setStatus(status);
         updateById(employee);
+    }
+
+    private String trimToNull(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }

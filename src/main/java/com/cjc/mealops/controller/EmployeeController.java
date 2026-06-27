@@ -1,6 +1,8 @@
 package com.cjc.mealops.controller;
 
 import com.cjc.mealops.common.R;
+import com.cjc.mealops.entity.Employee;
+import com.cjc.mealops.service.EmployeeService;
 import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,9 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/employee")
 public class EmployeeController {
     private final ApiInvokeSupport api;
+    private final EmployeeService employeeService;
 
-    public EmployeeController(ApiInvokeSupport api) {
+    public EmployeeController(ApiInvokeSupport api, EmployeeService employeeService) {
         this.api = api;
+        this.employeeService = employeeService;
     }
 
     @PostMapping("/login")
@@ -33,8 +37,8 @@ public class EmployeeController {
     }
 
     @PostMapping
-    public R<Object> create(@RequestBody Map<String, Object> body) {
-        return R.success(api.invoke("employeeService", List.of("create", "save", "add"), body));
+    public R<Boolean> create(@RequestBody Employee body) {
+        return R.success(employeeService.create(body));
     }
 
     @GetMapping("/page")

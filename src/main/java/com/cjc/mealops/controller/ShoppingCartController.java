@@ -1,8 +1,10 @@
 package com.cjc.mealops.controller;
 
 import com.cjc.mealops.common.R;
+import com.cjc.mealops.dto.ShoppingCartDTO;
+import com.cjc.mealops.entity.ShoppingCart;
+import com.cjc.mealops.service.ShoppingCartService;
 import java.util.List;
-import java.util.Map;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,29 +15,31 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/shoppingCart")
 public class ShoppingCartController {
-    private final ApiInvokeSupport api;
+    private final ShoppingCartService shoppingCartService;
 
-    public ShoppingCartController(ApiInvokeSupport api) {
-        this.api = api;
+    public ShoppingCartController(ShoppingCartService shoppingCartService) {
+        this.shoppingCartService = shoppingCartService;
     }
 
     @GetMapping("/list")
-    public R<Object> list() {
-        return R.success(api.invoke("shoppingCartService", List.of("listCurrentUserCart", "listCurrentUser", "list")));
+    public R<List<ShoppingCart>> list() {
+        return R.success(shoppingCartService.listCurrentUserCart());
     }
 
     @PostMapping("/add")
-    public R<Object> add(@RequestBody Map<String, Object> body) {
-        return R.success(api.invoke("shoppingCartService", List.of("add", "create"), body));
+    public R<ShoppingCart> add(@RequestBody ShoppingCartDTO body) {
+        return R.success(shoppingCartService.add(body));
     }
 
     @PostMapping("/sub")
-    public R<Object> sub(@RequestBody Map<String, Object> body) {
-        return R.success(api.invoke("shoppingCartService", List.of("sub", "subtract", "decrease"), body));
+    public R<Void> sub(@RequestBody ShoppingCartDTO body) {
+        shoppingCartService.sub(body);
+        return R.success(null);
     }
 
     @DeleteMapping("/clean")
-    public R<Object> clean() {
-        return R.success(api.invoke("shoppingCartService", List.of("clean", "clear")));
+    public R<Void> clean() {
+        shoppingCartService.clean();
+        return R.success(null);
     }
 }
