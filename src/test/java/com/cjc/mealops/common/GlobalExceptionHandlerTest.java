@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -25,5 +26,21 @@ class GlobalExceptionHandlerTest {
         );
         ResponseStatus status = method.getAnnotation(ResponseStatus.class);
         assertThat(status.value()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void dataIntegrityViolationReturnsBadRequestInsteadOfInternalServerError() throws Exception {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        R<Void> response = handler.dataIntegrity(new DataIntegrityViolationException("foreign key violation"));
+
+        assertThat(response.getCode()).isZero();
+        assertThat(response.getMsg()).isEqualTo("数据被其他记录引用，不能直接删除或修改");
+
+        Method method = GlobalExceptionHandler.class.getDeclaredMethod(
+                "dataIntegrity",
+                DataIntegrityViolationException.class
+        );
+        ResponseStatus status = method.getAnnotation(ResponseStatus.class);
+        assertThat(status.value()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 }

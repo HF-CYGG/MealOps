@@ -16,9 +16,11 @@ class ContainerRuntimeConfigTest {
         assertThat(dockerfile).contains("-XX:MaxRAMPercentage=");
         assertThat(dockerfile).contains("-Dfile.encoding=UTF-8");
         assertThat(dockerfile).contains("LANG=C.UTF-8");
-        assertThat(dockerfile).contains("apk add --no-cache su-exec");
-        assertThat(dockerfile).contains("exec su-exec mealops java -jar /app/app.jar");
-        assertThat(dockerfile).doesNotContain("exec su mealops");
+        assertThat(dockerfile).contains("public.ecr.aws/docker/library/node:22-alpine AS frontend-build");
+        assertThat(dockerfile).contains("public.ecr.aws/docker/library/maven:3.9.11-eclipse-temurin-17 AS build");
+        assertThat(dockerfile).contains("public.ecr.aws/docker/library/eclipse-temurin:17-jre-alpine");
+        assertThat(dockerfile).doesNotContain("apk add --no-cache su-exec");
+        assertThat(dockerfile).contains("exec su mealops -s /bin/sh -c 'java -jar /app/app.jar'");
     }
 
     @Test

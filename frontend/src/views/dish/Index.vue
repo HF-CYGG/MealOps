@@ -366,7 +366,7 @@ const resetForm = () => {
 
 const handleStatusChange = async (row) => {
   const newStatus = row.status === 1 ? 0 : 1
-  const actionText = newStatus === 1 ? '停售' : '起售'
+  const actionText = newStatus === 1 ? '起售' : '停售'
   
   try {
     await ElMessageBox.confirm(`确定要${actionText}该菜品吗？`, '提示', {

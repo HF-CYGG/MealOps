@@ -138,6 +138,17 @@ class DishDeletionPolicyTest {
         inOrder.verify(dishFlavorMapper).deleteByDishIds(ids);
     }
 
+    @Test
+    void rejectsStatusUpdateWhenDishDoesNotExist() {
+        List<Long> ids = List.of(3001L);
+        when(dishMapper.updateById(org.mockito.ArgumentMatchers.any(Dish.class))).thenReturn(0);
+        DishServiceImpl service = service();
+
+        assertThatThrownBy(() -> service.updateStatus(0, ids))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Dish not found");
+    }
+
     private void givenNoEnabledDish() {
         when(dishMapper.selectCount(org.mockito.ArgumentMatchers.<Wrapper<Dish>>any())).thenReturn(0L);
     }

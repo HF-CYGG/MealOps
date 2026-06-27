@@ -139,7 +139,9 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
         dish.setStatus(status);
         dish.setUpdateTime(LocalDateTime.now());
         dish.setUpdateUser(currentUserId());
-        updateById(dish);
+        if (!updateById(dish)) {
+            throw new BusinessException("Dish not found");
+        }
     }
 
     @Override

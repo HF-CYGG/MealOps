@@ -379,7 +379,7 @@ docker logs --tail 200 MealOps
 判断方式：
 
 - `oom=true`：容器被内存限制杀掉。优先提高容器内存，或保留镜像默认 `JAVA_TOOL_OPTIONS`，不要删除 `-XX:MaxRAMPercentage=70.0`。
-- `exit=137` 且 `oom=false`：容器进程收到了外部 `SIGKILL`，常见于面板强制停止、重启超时、宿主机任务清理或旧镜像入口进程没有正确转发停止信号。新版镜像入口已使用 `su-exec` 直接启动 Java，避免 `su` 作为中间进程导致停止超时。
+- `exit=137` 且 `oom=false`：容器进程收到了外部 `SIGKILL`，常见于面板强制停止、重启超时、宿主机任务清理或旧镜像入口进程没有正确转发停止信号。新版镜像入口已使用 `exec su mealops -s /bin/sh -c 'java -jar /app/app.jar'` 启动 Java，并通过 `exec` 让 Java 进程接收停止信号。
 - 日志大量出现 MyBatis `Preparing/Parameters`：说明业务日志级别是 `DEBUG`，会显著放大容器日志和 I/O 压力。生产环境保持 `MEALOPS_LOG_LEVEL=INFO`，仅排查问题时临时改为 `DEBUG`。
 - 只有 logback `Missing watchable .xml` 这类提示：属于嵌套 jar 下配置扫描提示，不代表服务启动失败；当前镜像已关闭 logback 配置扫描以减少噪声。
 
