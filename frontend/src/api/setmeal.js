@@ -60,6 +60,6 @@ export const changeSetmealStatus = (status, id) => {
   return request({
     url: `/setmeal/status/${status}`,
     method: 'post',
-    params: { id }
+    params: { ids: id }
   })
 }

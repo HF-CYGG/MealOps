@@ -30,8 +30,18 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
             "user",
             "category",
             "dish",
+            "dish_flavor",
             "setmeal",
+            "setmeal_dish",
+            "shopping_cart",
+            "address_book",
+            "dining_table",
+            "dining_session",
+            "dining_session_member",
+            "dining_cart_item",
             "orders",
+            "order_detail",
+            "payment_order",
             "operation_log"
     );
 
@@ -77,6 +87,10 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
             }
         }
         return true;
+    }
+
+    static List<String> requiredTables() {
+        return REQUIRED_TABLES;
     }
 
     private boolean tableExists(Connection connection, String tableName) throws SQLException {

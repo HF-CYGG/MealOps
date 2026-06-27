@@ -57,6 +57,8 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
         Category category = new Category();
         category.setId(id);
         category.setStatus(status);
-        updateById(category);
+        if (!updateById(category)) {
+            throw new BusinessException("Category not found");
+        }
     }
 }

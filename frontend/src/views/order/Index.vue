@@ -16,8 +16,8 @@
           <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 150px">
             <el-option label="待付款" :value="1" />
             <el-option label="待接单" :value="2" />
-            <el-option label="已接单" :value="3" />
-            <el-option label="派送中" :value="4" />
+            <el-option label="备餐中" :value="3" />
+            <el-option label="出餐中" :value="4" />
             <el-option label="已完成" :value="5" />
             <el-option label="已取消" :value="6" />
           </el-select>
@@ -48,6 +48,13 @@
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column prop="payStatus" label="支付状态" align="center">
+        <template #default="scope">
+          <el-tag :type="getPayStatusType(scope.row.payStatus)">
+            {{ getPayStatusText(scope.row.payStatus) }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="userName" label="用户名" align="center" />
       <el-table-column prop="phone" label="手机号" align="center" width="120" />
       <el-table-column prop="address" label="地址" align="center" show-overflow-tooltip />
@@ -60,13 +67,13 @@
       <el-table-column label="操作" align="center" width="220" fixed="right">
         <template #default="scope">
           <el-button 
-            v-if="scope.row.status === 2" 
+            v-if="scope.row.status === 2 && scope.row.payStatus === 1"
             type="primary" 
             link 
             @click="handleConfirm(scope.row)"
           >接单</el-button>
           <el-button 
-            v-if="scope.row.status === 2" 
+            v-if="scope.row.status === 2 && scope.row.payStatus === 1"
             type="danger" 
             link 
             @click="handleRejection(scope.row)"
@@ -76,7 +83,7 @@
             type="primary" 
             link 
             @click="handleDelivery(scope.row)"
-          >派送</el-button>
+          >开始出餐</el-button>
           <el-button 
             v-if="scope.row.status === 4" 
             type="success" 
@@ -199,8 +206,8 @@ const getStatusText = (status) => {
   const map = {
     1: '待付款',
     2: '待接单',
-    3: '已接单',
-    4: '派送中',
+    3: '备餐中',
+    4: '出餐中',
     5: '已完成',
     6: '已取消'
   }
@@ -217,6 +224,18 @@ const getStatusType = (status) => {
     6: 'info'
   }
   return map[status] || 'info'
+}
+
+const getPayStatusText = (payStatus) => {
+  const map = {
+    0: '未支付',
+    1: '已支付'
+  }
+  return map[payStatus] || '未知'
+}
+
+const getPayStatusType = (payStatus) => {
+  return payStatus === 1 ? 'success' : 'warning'
 }
 
 const getList = async () => {
@@ -327,20 +346,20 @@ const submitRejection = async () => {
   })
 }
 
-// 派送
+// 出餐
 const handleDelivery = async (row) => {
   try {
-    await ElMessageBox.confirm('确认开始派送该订单吗？', '提示', {
+    await ElMessageBox.confirm('确认该订单已备餐完成并开始出餐吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'info'
     })
     const res = await deliveryOrder(row.id)
     if (res.code === 1) {
-      ElMessage.success('派送成功')
+      ElMessage.success('出餐成功')
       getList()
     } else {
-      ElMessage.error(res.msg || '派送失败')
+      ElMessage.error(res.msg || '出餐失败')
     }
   } catch (error) {
     if (error !== 'cancel') {

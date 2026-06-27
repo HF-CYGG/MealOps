@@ -1,5 +1,6 @@
 package com.cjc.mealops.controller;
 
+import com.cjc.mealops.common.AuthUtils;
 import com.cjc.mealops.common.R;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,7 @@ public class OperationLogController {
 
     @GetMapping("/page")
     public R<Object> page(@RequestParam Map<String, String> params) {
+        AuthUtils.requireEmployee();
         return R.success(api.invoke("operationLogService", List.of("page", "pageQuery"), api.query(params)));
     }
 }

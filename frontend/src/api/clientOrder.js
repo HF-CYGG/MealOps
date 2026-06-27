@@ -17,6 +17,27 @@ export const submitOrder = (data) => {
   })
 }
 
+export const prepayOrder = (orderId) => {
+  return request({
+    url: `/orders/${orderId}/payments/prepay`,
+    method: 'post'
+  })
+}
+
+export const getPaymentByOrder = (orderId) => {
+  return request({
+    url: `/orders/${orderId}/payment`,
+    method: 'get'
+  })
+}
+
+export const confirmPayment = (paymentId) => {
+  return request({
+    url: `/payments/${paymentId}/confirm`,
+    method: 'post'
+  })
+}
+
 /**
  * 用户历史订单分页查询
  * @param {Object} params 分页参数

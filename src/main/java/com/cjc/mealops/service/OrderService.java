@@ -1,6 +1,7 @@
 package com.cjc.mealops.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cjc.mealops.dto.OrdersSubmitDTO;
 import com.cjc.mealops.entity.Orders;
 import com.cjc.mealops.vo.OrderVO;
@@ -15,6 +16,8 @@ public interface OrderService extends IService<Orders> {
     Object userPage(Map<String, Object> params);
 
     Object history(Map<String, Object> params);
+
+    Page<Orders> pageQuery(Map<String, Object> params);
 
     Object pageByCurrentUser(Map<String, Object> params);
 

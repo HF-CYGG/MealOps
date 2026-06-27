@@ -8,6 +8,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cjc.mealops.common.BaseContext;
 import com.cjc.mealops.common.BusinessException;
 import com.cjc.mealops.entity.OrderDetail;
@@ -22,6 +24,7 @@ import com.cjc.mealops.service.impl.OrderServiceImpl;
 import com.cjc.mealops.vo.OrderVO;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -102,6 +105,31 @@ class OrderServiceImplTest {
 
         assertThat(result.getId()).isEqualTo(9001L);
         verify(orderDetailMapper).selectList(any());
+    }
+
+    @Test
+    void pageQueryFiltersOrdersBySearchFormFields() {
+        OrderServiceImpl service = serviceWithOrder(ownedOrder());
+        when(ordersMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenAnswer(invocation -> {
+            Page<Orders> page = invocation.getArgument(0);
+            page.setRecords(List.of(ownedOrder()));
+            page.setTotal(1);
+            return page;
+        });
+
+        Page<Orders> result = service.pageQuery(Map.of(
+                "page", "3",
+                "pageSize", "20",
+                "number", "20260627",
+                "phone", "139",
+                "status", "2",
+                "beginTime", "2026-06-27 00:00:00",
+                "endTime", "2026-06-27 23:59:59"));
+
+        assertThat(result.getCurrent()).isEqualTo(3);
+        assertThat(result.getSize()).isEqualTo(20);
+        assertThat(result.getTotal()).isEqualTo(1);
+        verify(ordersMapper).selectPage(any(Page.class), any(LambdaQueryWrapper.class));
     }
 
     private Orders ownedOrder() {

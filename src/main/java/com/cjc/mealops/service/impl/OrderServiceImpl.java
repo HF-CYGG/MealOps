@@ -27,6 +27,7 @@ import com.cjc.mealops.vo.OrderSubmitVO;
 import com.cjc.mealops.vo.OrderVO;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,8 @@ import org.springframework.util.CollectionUtils;
 
 @Service
 public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implements OrderService {
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private final ShoppingCartService shoppingCartService;
     private final AddressBookMapper addressBookMapper;
     private final UserMapper userMapper;
@@ -174,6 +177,34 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
     }
 
     @Override
+    public Page<Orders> pageQuery(Map<String, Object> params) {
+        Page<Orders> page = new Page<>(longParam(params, "page", 1L), longParam(params, "pageSize", 10L));
+        LambdaQueryWrapper<Orders> wrapper = new LambdaQueryWrapper<>();
+        Object number = params == null ? null : params.get("number");
+        Object phone = params == null ? null : params.get("phone");
+        Object status = params == null ? null : params.get("status");
+        Object beginTime = params == null ? null : params.get("beginTime");
+        Object endTime = params == null ? null : params.get("endTime");
+        if (number != null && !String.valueOf(number).isBlank()) {
+            wrapper.like(Orders::getNumber, String.valueOf(number).trim());
+        }
+        if (phone != null && !String.valueOf(phone).isBlank()) {
+            wrapper.like(Orders::getPhone, String.valueOf(phone).trim());
+        }
+        if (status != null && !String.valueOf(status).isBlank()) {
+            wrapper.eq(Orders::getStatus, Integer.parseInt(String.valueOf(status)));
+        }
+        if (beginTime != null && !String.valueOf(beginTime).isBlank()) {
+            wrapper.ge(Orders::getOrderTime, parseDateTime(beginTime));
+        }
+        if (endTime != null && !String.valueOf(endTime).isBlank()) {
+            wrapper.le(Orders::getOrderTime, parseDateTime(endTime));
+        }
+        wrapper.orderByDesc(Orders::getOrderTime);
+        return baseMapper.selectPage(page, wrapper);
+    }
+
+    @Override
     public Object pageByCurrentUser(Map<String, Object> params) {
         Long userId = requiredCurrentUserId();
         Page<Orders> page = new Page<>(longParam(params, "page", 1L), longParam(params, "pageSize", 10L));
@@ -256,6 +287,10 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
             return defaultValue;
         }
         return Long.parseLong(String.valueOf(params.get(name)));
+    }
+
+    private LocalDateTime parseDateTime(Object value) {
+        return LocalDateTime.parse(String.valueOf(value), DATE_TIME_FORMATTER);
     }
 
     private Orders getRequiredOrder(Long id) {

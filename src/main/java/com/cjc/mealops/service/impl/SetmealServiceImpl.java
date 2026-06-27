@@ -111,7 +111,9 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         setmeal.setStatus(status);
         setmeal.setUpdateTime(LocalDateTime.now());
         setmeal.setUpdateUser(currentUserId());
-        updateById(setmeal);
+        if (!updateById(setmeal)) {
+            throw new BusinessException("Setmeal not found");
+        }
     }
 
     @Override

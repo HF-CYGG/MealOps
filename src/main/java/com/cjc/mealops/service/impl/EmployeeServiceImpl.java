@@ -92,7 +92,9 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         Employee employee = new Employee();
         employee.setId(id);
         employee.setStatus(status);
-        updateById(employee);
+        if (!updateById(employee)) {
+            throw new BusinessException("Employee not found");
+        }
     }
 
     private String trimToNull(String value) {

@@ -1,6 +1,7 @@
 package com.cjc.mealops.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cjc.mealops.common.BaseContext;
 import com.cjc.mealops.common.BusinessException;
@@ -20,6 +21,7 @@ import com.cjc.mealops.vo.DishVO;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,6 +74,32 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
         }
         dishVO.setFlavors(dishFlavorMapper.selectByDishId(id));
         return dishVO;
+    }
+
+    @Override
+    public Page<DishVO> pageQuery(Map<String, Object> params) {
+        Page<Dish> page = new Page<>(longParam(params, "page", 1L), longParam(params, "pageSize", 10L));
+        LambdaQueryWrapper<Dish> wrapper = new LambdaQueryWrapper<>();
+        Object name = params == null ? null : params.get("name");
+        Object categoryId = params == null ? null : params.get("categoryId");
+        Object status = params == null ? null : params.get("status");
+        if (name != null && !String.valueOf(name).isBlank()) {
+            wrapper.like(Dish::getName, String.valueOf(name).trim());
+        }
+        if (categoryId != null && !String.valueOf(categoryId).isBlank()) {
+            wrapper.eq(Dish::getCategoryId, Long.parseLong(String.valueOf(categoryId)));
+        }
+        if (status != null && !String.valueOf(status).isBlank()) {
+            wrapper.eq(Dish::getStatus, Integer.parseInt(String.valueOf(status)));
+        }
+        wrapper.orderByDesc(Dish::getUpdateTime);
+        Page<Dish> dishPage = baseMapper.selectPage(page, wrapper);
+        Map<Long, String> categoryNames = categoryNames(dishPage.getRecords());
+        Page<DishVO> result = new Page<>(dishPage.getCurrent(), dishPage.getSize(), dishPage.getTotal());
+        result.setRecords(dishPage.getRecords().stream()
+                .map(dish -> toDishVO(dish, categoryNames.get(dish.getCategoryId())))
+                .toList());
+        return result;
     }
 
     @Override
@@ -164,6 +192,33 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
             flavor.setDishId(dishId);
             dishFlavorMapper.insert(flavor);
         }
+    }
+
+    private Map<Long, String> categoryNames(List<Dish> dishes) {
+        List<Long> categoryIds = dishes.stream()
+                .map(Dish::getCategoryId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (categoryIds.isEmpty()) {
+            return Map.of();
+        }
+        return categoryMapper.selectBatchIds(categoryIds).stream()
+                .collect(Collectors.toMap(Category::getId, Category::getName, (left, right) -> left));
+    }
+
+    private DishVO toDishVO(Dish dish, String categoryName) {
+        DishVO dishVO = new DishVO();
+        BeanUtils.copyProperties(dish, dishVO);
+        dishVO.setCategoryName(categoryName);
+        return dishVO;
+    }
+
+    private long longParam(Map<String, Object> params, String name, long defaultValue) {
+        if (params == null || params.get(name) == null || String.valueOf(params.get(name)).isBlank()) {
+            return defaultValue;
+        }
+        return Long.parseLong(String.valueOf(params.get(name)));
     }
 
     private void fillCreateFields(Dish dish) {

@@ -2,6 +2,10 @@ package com.cjc.mealops.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 class DatabaseSchemaInitializerTest {
@@ -41,5 +45,18 @@ class DatabaseSchemaInitializerTest {
         assertThat(sanitized).doesNotContain("SET NAMES");
         assertThat(sanitized).doesNotContain("USE reggie");
         assertThat(sanitized).contains("INSERT IGNORE INTO employee");
+    }
+
+    @Test
+    void requiredTablesCoverEveryTableCreatedBySchema() throws Exception {
+        String schema = Files.readString(Path.of("sql/schema.sql"), StandardCharsets.UTF_8);
+        Pattern createTable = Pattern.compile("(?im)^\\s*CREATE\\s+TABLE\\s+`?([a-zA-Z0-9_]+)`?\\s*\\(");
+        java.util.List<String> schemaTables = createTable.matcher(schema)
+                .results()
+                .map(match -> match.group(1))
+                .toList();
+
+        assertThat(DatabaseSchemaInitializer.requiredTables())
+                .containsExactlyInAnyOrderElementsOf(schemaTables);
     }
 }

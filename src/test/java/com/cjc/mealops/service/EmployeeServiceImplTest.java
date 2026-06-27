@@ -1,11 +1,13 @@
 package com.cjc.mealops.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.cjc.mealops.common.BaseContext;
+import com.cjc.mealops.common.BusinessException;
 import com.cjc.mealops.entity.Employee;
 import com.cjc.mealops.mapper.EmployeeMapper;
 import com.cjc.mealops.service.impl.EmployeeServiceImpl;
@@ -14,6 +16,7 @@ import com.cjc.mealops.util.Md5Utils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class EmployeeServiceImplTest {
 
@@ -75,5 +78,21 @@ class EmployeeServiceImplTest {
         assertThat(loggedIn).isSameAs(employee);
         verify(mapper).selectByLoginIdentifier("13900000002");
         verify(loginSecurityService).clear("13900000002");
+    }
+
+    @Test
+    void rejectsStatusUpdateWhenEmployeeDoesNotExist() {
+        EmployeeMapper mapper = mock(EmployeeMapper.class);
+        when(mapper.updateById(org.mockito.ArgumentMatchers.any(Employee.class))).thenReturn(0);
+        EmployeeServiceImpl service = new EmployeeServiceImpl(
+                mapper,
+                mock(LoginSecurityService.class),
+                mock(JwtUtils.class)
+        );
+        ReflectionTestUtils.setField(service, "baseMapper", mapper);
+
+        assertThatThrownBy(() -> service.updateStatus(0, 99L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Employee not found");
     }
 }

@@ -1,8 +1,11 @@
 package com.cjc.mealops.controller;
 
+import com.cjc.mealops.common.AuthUtils;
+import com.cjc.mealops.common.BusinessException;
 import com.cjc.mealops.common.R;
 import com.cjc.mealops.service.StatsService;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,6 +23,7 @@ public class StatsController {
 
     @GetMapping("/hot-dishes")
     public R<Object> hotDishes(@RequestParam Map<String, String> params) {
+        AuthUtils.requireEmployee();
         int limit = Integer.parseInt(params.getOrDefault("limit", "10"));
         LocalDateTime beginTime = parseDateTime(params.get("beginTime"), LocalDateTime.now().minusDays(30));
         LocalDateTime endTime = parseDateTime(params.get("endTime"), LocalDateTime.now());
@@ -28,6 +32,7 @@ public class StatsController {
 
     @GetMapping("/overview")
     public R<Object> overview() {
+        AuthUtils.requireEmployee();
         return R.success(statsService.todayOverview());
     }
 
@@ -35,6 +40,10 @@ public class StatsController {
         if (value == null || value.isBlank()) {
             return defaultValue;
         }
-        return LocalDateTime.parse(value);
+        try {
+            return LocalDateTime.parse(value);
+        } catch (DateTimeParseException ex) {
+            throw new BusinessException("Invalid statistics time range");
+        }
     }
 }

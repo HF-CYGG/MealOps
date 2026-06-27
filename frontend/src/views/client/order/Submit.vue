@@ -101,13 +101,58 @@
         </div>
       </div>
 
+      <div v-if="paymentPanelVisible" class="section payment-card">
+        <h3>订单支付</h3>
+        <div class="payment-summary">
+          <div>
+            <span>订单号</span>
+            <strong>{{ currentOrder.orderNumber || currentOrder.number || '-' }}</strong>
+          </div>
+          <div>
+            <span>应付金额</span>
+            <strong class="payment-amount">￥{{ paymentAmount }}</strong>
+          </div>
+          <div>
+            <span>支付状态</span>
+            <el-tag :type="currentPayment.status === 1 ? 'success' : 'warning'">
+              {{ paymentStatusText(currentPayment.status) }}
+            </el-tag>
+          </div>
+        </div>
+        <el-alert
+          title="请确认已经完成支付，确认后商家端会进入待接单/备餐流程。"
+          type="info"
+          :closable="false"
+          show-icon
+        />
+        <div class="payment-actions">
+          <el-button
+            type="primary"
+            size="large"
+            :loading="paymentConfirming"
+            :disabled="!currentPayment.paymentId && !currentPayment.id"
+            @click="handleConfirmPayment"
+          >
+            确认已支付
+          </el-button>
+          <el-button @click="router.push('/client/order/history')">稍后支付</el-button>
+        </div>
+      </div>
+
       <!-- 底部提交栏 -->
       <div class="bottom-bar">
         <div class="total-info">
           应付金额: <span class="price">￥{{ totalPrice.toFixed(2) }}</span>
         </div>
-        <el-button type="primary" size="large" class="submit-btn" :loading="submitting" @click="handleSubmit">
-          提交订单
+        <el-button
+          type="primary"
+          size="large"
+          class="submit-btn"
+          :loading="submitting"
+          :disabled="paymentPanelVisible"
+          @click="handleSubmit"
+        >
+          {{ paymentPanelVisible ? '订单已生成' : '提交订单' }}
         </el-button>
       </div>
     </el-card>
@@ -144,7 +189,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { useCartStore } from '@/store/cart'
-import { submitOrder } from '@/api/clientOrder'
+import { confirmPayment, prepayOrder, submitOrder } from '@/api/clientOrder'
 import {
   createAddressBook,
   getAddressBookList,
@@ -162,7 +207,11 @@ const cartList = ref([])
 const addressList = ref([])
 const selectedAddressId = ref(null)
 const submitting = ref(false)
+const paymentConfirming = ref(false)
+const paymentPanelVisible = ref(false)
 const orderFormRef = ref(null)
+const currentOrder = ref({})
+const currentPayment = ref({})
 
 const PHONE_PATTERN = /^1[3-9]\d{9}$/
 const ORDER_CONTEXT_KEY = 'orderContext'
@@ -191,6 +240,15 @@ const orderRules = {
 const totalPrice = computed(() => {
   return cartList.value.reduce((sum, item) => sum + (item.amount * item.number), 0)
 })
+
+const paymentAmount = computed(() => {
+  const amount = currentPayment.value.amount || currentOrder.value.orderAmount || currentOrder.value.amount || totalPrice.value
+  return Number(amount || 0).toFixed(2)
+})
+
+const paymentStatusText = (status) => {
+  return status === 1 ? '已支付' : '待支付'
+}
 
 // 登录相关
 const loginDialogVisible = ref(false)
@@ -423,16 +481,49 @@ const doSubmitOrder = async () => {
     
     const res = await submitOrder(data)
     if (res.code === 1) {
-      ElMessage.success('下单成功')
-      localStorage.removeItem(ORDER_CONTEXT_KEY)
+      const order = res.data || {}
+      const orderId = order.orderId || order.id
+      if (!orderId) {
+        ElMessage.error('订单创建成功，但缺少订单编号，无法发起支付')
+        return
+      }
+      const paymentRes = await prepayOrder(orderId)
+      if (paymentRes.code === 1) {
+        currentOrder.value = order
+        currentPayment.value = paymentRes.data || {}
+        paymentPanelVisible.value = true
+        localStorage.removeItem(ORDER_CONTEXT_KEY)
+        ElMessage.success('订单已生成，请确认支付')
+      }
       // 清空本地和远端购物车
       await cartStore.cleanCart()
-      router.push('/client/order/history')
+      cartList.value = []
     }
   } catch (error) {
     console.error('提交订单失败', error)
   } finally {
     submitting.value = false
+  }
+}
+
+const handleConfirmPayment = async () => {
+  const paymentId = currentPayment.value.paymentId || currentPayment.value.id
+  if (!paymentId) {
+    ElMessage.error('支付单不存在，请重新提交订单')
+    return
+  }
+  paymentConfirming.value = true
+  try {
+    const res = await confirmPayment(paymentId)
+    if (res.code === 1) {
+      currentPayment.value = res.data || { ...currentPayment.value, status: 1 }
+      ElMessage.success('支付确认成功，商家已收到待接单订单')
+      router.push('/client/order/history')
+    }
+  } catch (error) {
+    console.error('确认支付失败', error)
+  } finally {
+    paymentConfirming.value = false
   }
 }
 
@@ -642,6 +733,51 @@ const resolveAddressBookId = async () => {
   color: #666;
 }
 
+.payment-card {
+  padding: 20px;
+  border: 1px solid rgba(64, 158, 255, 0.18);
+  border-radius: 16px;
+  background: #f7fbff;
+}
+
+.payment-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.payment-summary div {
+  min-height: 72px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.payment-summary span {
+  display: block;
+  margin-bottom: 8px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.payment-summary strong {
+  color: #1f2937;
+  font-size: 16px;
+}
+
+.payment-summary .payment-amount {
+  color: #f53f3f;
+  font-size: 20px;
+}
+
+.payment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+}
+
 .total-price {
   color: #F53F3F;
   font-size: 24px;
@@ -781,6 +917,19 @@ const resolveAddressBookId = async () => {
   .submit-btn {
     width: 100%;
     min-height: 48px;
+  }
+
+  .payment-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-actions {
+    flex-direction: column;
+  }
+
+  .payment-actions .el-button {
+    width: 100%;
+    margin-left: 0;
   }
 }
 

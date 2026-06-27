@@ -27,6 +27,7 @@ public class SpaForwardController {
             "/client/login",
             "/client/home",
             "/client/menu",
+            "/client/address",
             "/client/order/submit",
             "/client/order/history"
     })
