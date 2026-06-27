@@ -1,5 +1,3 @@
-SET NAMES utf8mb4;
-
 USE reggie;
 
 INSERT INTO employee

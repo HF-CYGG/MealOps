@@ -71,6 +71,7 @@ services:
       MEALOPS_DB_INIT_SEED_DATA_ENABLED: ${MEALOPS_DB_INIT_SEED_DATA_ENABLED:-true}
       MEALOPS_JWT_SECRET: ${MEALOPS_JWT_SECRET:-mealops-docker-secret-change-me}
       MEALOPS_JWT_TTL_HOURS: ${MEALOPS_JWT_TTL_HOURS:-2}
+      MEALOPS_LOG_LEVEL: ${MEALOPS_LOG_LEVEL:-INFO}
       LOG_PATH: /app/logs
     ports:
       - "${BACKEND_PORT:-8080}:8080"

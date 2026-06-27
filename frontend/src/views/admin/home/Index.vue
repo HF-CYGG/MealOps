@@ -3,7 +3,7 @@
   <div class="admin-home-container">
     <!-- 数据概览区 -->
     <div class="section-title">数据概览</div>
-    <el-row :gutter="24" class="stats-row">
+    <el-row v-loading="statsLoading" :gutter="24" class="stats-row">
       <el-col :xs="24" :sm="12" :md="12" :lg="6" v-for="stat in statsData" :key="stat.title" class="stat-col">
         <el-card class="stat-card" shadow="hover">
           <div class="stat-card-content">
@@ -37,18 +37,20 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Money, ShoppingCart, User, Tickets, Plus, List, Grid, Setting } from '@element-plus/icons-vue'
+import { getDashboardOverview } from '@/api/stats'
 
 const router = useRouter()
 
 // 统计数据
+const statsLoading = ref(false)
 const statsData = ref([
-  { title: '今日营业额', value: '￥5,230.00', icon: Money, color: '#409EFF', bgColor: '#ecf5ff' },
-  { title: '今日有效订单', value: '128', icon: ShoppingCart, color: '#67C23A', bgColor: '#f0f9eb' },
-  { title: '新增用户', value: '32', icon: User, color: '#E6A23C', bgColor: '#fdf6ec' },
-  { title: '待处理订单', value: '12', icon: Tickets, color: '#F56C6C', bgColor: '#fef0f0' }
+  { key: 'todayTurnover', title: '今日营业额', value: '¥0.00', icon: Money, color: '#409EFF', bgColor: '#ecf5ff' },
+  { key: 'todayValidOrders', title: '今日有效订单', value: '0', icon: ShoppingCart, color: '#67C23A', bgColor: '#f0f9eb' },
+  { key: 'newUsers', title: '新增用户', value: '0', icon: User, color: '#E6A23C', bgColor: '#fdf6ec' },
+  { key: 'pendingOrders', title: '待处理订单', value: '0', icon: Tickets, color: '#F56C6C', bgColor: '#fef0f0' }
 ])
 
 // 快捷操作
@@ -64,6 +66,44 @@ const quickActions = ref([
 const handleQuickAction = (route) => {
   router.push(route)
 }
+
+const formatCurrency = (value) => {
+  return Number(value || 0).toLocaleString('zh-CN', {
+    style: 'currency',
+    currency: 'CNY',
+    minimumFractionDigits: 2
+  })
+}
+
+const formatCount = (value) => {
+  return Number(value || 0).toLocaleString('zh-CN')
+}
+
+const refreshStats = async () => {
+  statsLoading.value = true
+  try {
+    const res = await getDashboardOverview()
+    const overview = res.data || {}
+    statsData.value = statsData.value.map((stat) => ({
+      ...stat,
+      value: stat.key === 'todayTurnover'
+        ? formatCurrency(overview[stat.key])
+        : formatCount(overview[stat.key])
+    }))
+  } catch (error) {
+    console.error('获取首页数据概览失败', error)
+    statsData.value = statsData.value.map((stat) => ({
+      ...stat,
+      value: stat.key === 'todayTurnover' ? formatCurrency(0) : formatCount(0)
+    }))
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+onMounted(() => {
+  refreshStats()
+})
 </script>
 
 <style scoped>

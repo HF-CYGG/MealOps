@@ -73,5 +73,5 @@ logging:
   config: classpath:logback-spring.xml
   level:
     root: INFO
-    com.cjc.mealops: DEBUG
+    com.cjc.mealops: ${MEALOPS_LOG_LEVEL:INFO}
     com.baomidou.mybatisplus: INFO

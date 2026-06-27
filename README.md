@@ -348,6 +348,7 @@ TZ=Asia/Shanghai
 | `MEALOPS_ADMIN_PHONE` | `13800000000` | 后端容器 | 管理员手机号 |
 | `MEALOPS_JWT_SECRET` | `change-this-secret-before-production` | 后端容器 | JWT 签名密钥，生产环境必须修改 |
 | `MEALOPS_JWT_TTL_HOURS` | `2` | 后端容器 | JWT 有效小时数 |
+| `MEALOPS_LOG_LEVEL` | `INFO` | 后端容器 | 后端业务日志级别；排查 SQL/API 明细时可临时改为 `DEBUG`，生产建议保持 `INFO` |
 
 ### 容器内固定配置
 
@@ -361,9 +362,26 @@ TZ=Asia/Shanghai
 | 后端 `REDIS_PORT` | `6379` | 后端容器连接 Redis 的容器内端口 |
 | `MEALOPS_UPLOAD_DIR` | `/app/uploads` | 后端上传文件目录 |
 | `LOG_PATH` | `/app/logs` | 后端日志目录 |
+| `JAVA_TOOL_OPTIONS` | `-XX:InitialRAMPercentage=20.0 -XX:MaxRAMPercentage=70.0 -Dfile.encoding=UTF-8` | 限制 JVM 按容器内存自适应分配，并固定 UTF-8 编码 |
 | `TZ` | `Asia/Shanghai` | MySQL、后端容器时区 |
 
 详细部署、重建、日志、冒烟验证和数据重置说明见 `docs/docker-deployment.md`。
+
+### 容器异常停机排查
+
+如果后端日志停在普通请求日志后直接中断，没有出现 `APPLICATION FAILED TO START`、Java 异常栈或 Spring shutdown 日志，通常不是应用主动退出，而是 Docker/面板从外部停止了容器。优先在服务器执行：
+
+```bash
+docker inspect MealOps --format '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} error={{.State.Error}}'
+docker logs --tail 200 MealOps
+```
+
+判断方式：
+
+- `oom=true`：容器被内存限制杀掉。优先提高容器内存，或保留镜像默认 `JAVA_TOOL_OPTIONS`，不要删除 `-XX:MaxRAMPercentage=70.0`。
+- `exit=137` 且 `oom=false`：容器进程收到了外部 `SIGKILL`，常见于面板强制停止、重启超时、宿主机任务清理或旧镜像入口进程没有正确转发停止信号。新版镜像入口已使用 `su-exec` 直接启动 Java，避免 `su` 作为中间进程导致停止超时。
+- 日志大量出现 MyBatis `Preparing/Parameters`：说明业务日志级别是 `DEBUG`，会显著放大容器日志和 I/O 压力。生产环境保持 `MEALOPS_LOG_LEVEL=INFO`，仅排查问题时临时改为 `DEBUG`。
+- 只有 logback `Missing watchable .xml` 这类提示：属于嵌套 jar 下配置扫描提示，不代表服务启动失败；当前镜像已关闭 logback 配置扫描以减少噪声。
 
 ## 初始账号与演示数据
 

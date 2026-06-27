@@ -26,6 +26,11 @@ public class StatsController {
         return R.success(statsService.hotDishes(beginTime, endTime, limit));
     }
 
+    @GetMapping("/overview")
+    public R<Object> overview() {
+        return R.success(statsService.todayOverview());
+    }
+
     private LocalDateTime parseDateTime(String value, LocalDateTime defaultValue) {
         if (value == null || value.isBlank()) {
             return defaultValue;

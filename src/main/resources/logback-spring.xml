@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration scan="true" scanPeriod="30 seconds">
+<configuration scan="false">
     <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="mealops"/>
+    <springProperty scope="context" name="MEALOPS_LOG_LEVEL" source="logging.level.com.cjc.mealops" defaultValue="INFO"/>
     <property name="LOG_PATH" value="${LOG_PATH:-logs}"/>
     <property name="CONSOLE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"/>
     <property name="FILE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{50} - %msg%n"/>
@@ -27,7 +28,7 @@
     </appender>
 
     <logger name="org.springframework" level="INFO"/>
-    <logger name="com.cjc.mealops" level="DEBUG"/>
+    <logger name="com.cjc.mealops" level="${MEALOPS_LOG_LEVEL:-INFO}"/>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
