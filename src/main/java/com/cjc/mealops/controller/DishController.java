@@ -1,5 +1,6 @@
 package com.cjc.mealops.controller;
 
+import com.cjc.mealops.common.BusinessException;
 import com.cjc.mealops.common.R;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +55,22 @@ public class DishController {
     }
 
     @RequestMapping(value = "/status/{status}", method = {RequestMethod.POST, RequestMethod.PUT})
-    public R<Object> updateStatus(@PathVariable Integer status, @RequestParam String ids) {
-        return R.success(api.invoke("dishService", List.of("updateStatus", "startOrStop", "status", "setStatus"), status, api.ids(ids)));
+    public R<Object> updateStatus(
+            @PathVariable Integer status,
+            @RequestParam(required = false) String ids,
+            @RequestParam(required = false) String id
+    ) {
+        if (status == null || (status != 0 && status != 1)) {
+            throw new BusinessException("Invalid dish status");
+        }
+        String rawIds = ids == null || ids.isBlank() ? id : ids;
+        if (rawIds == null || rawIds.isBlank()) {
+            throw new BusinessException("Dish id is required");
+        }
+        List<Long> dishIds = api.ids(rawIds);
+        if (dishIds.isEmpty()) {
+            throw new BusinessException("Dish id is required");
+        }
+        return R.success(api.invoke("dishService", List.of("updateStatus", "startOrStop", "status", "setStatus"), status, dishIds));
     }
 }

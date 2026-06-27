@@ -61,6 +61,6 @@ export const changeDishStatus = (status, id) => {
   return request({
     url: `/dish/status/${status}`,
     method: 'post',
-    params: { id }
+    params: { ids: id }
   })
 }

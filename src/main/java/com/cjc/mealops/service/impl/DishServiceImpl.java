@@ -9,8 +9,12 @@ import com.cjc.mealops.entity.Category;
 import com.cjc.mealops.entity.Dish;
 import com.cjc.mealops.entity.DishFlavor;
 import com.cjc.mealops.mapper.CategoryMapper;
+import com.cjc.mealops.mapper.DiningCartItemMapper;
 import com.cjc.mealops.mapper.DishFlavorMapper;
 import com.cjc.mealops.mapper.DishMapper;
+import com.cjc.mealops.mapper.OrderDetailMapper;
+import com.cjc.mealops.mapper.SetmealDishMapper;
+import com.cjc.mealops.mapper.ShoppingCartMapper;
 import com.cjc.mealops.service.DishService;
 import com.cjc.mealops.vo.DishVO;
 import java.time.LocalDateTime;
@@ -25,10 +29,23 @@ import org.springframework.util.CollectionUtils;
 public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements DishService {
     private final DishFlavorMapper dishFlavorMapper;
     private final CategoryMapper categoryMapper;
+    private final SetmealDishMapper setmealDishMapper;
+    private final ShoppingCartMapper shoppingCartMapper;
+    private final DiningCartItemMapper diningCartItemMapper;
+    private final OrderDetailMapper orderDetailMapper;
 
-    public DishServiceImpl(DishFlavorMapper dishFlavorMapper, CategoryMapper categoryMapper) {
+    public DishServiceImpl(DishFlavorMapper dishFlavorMapper,
+                           CategoryMapper categoryMapper,
+                           SetmealDishMapper setmealDishMapper,
+                           ShoppingCartMapper shoppingCartMapper,
+                           DiningCartItemMapper diningCartItemMapper,
+                           OrderDetailMapper orderDetailMapper) {
         this.dishFlavorMapper = dishFlavorMapper;
         this.categoryMapper = categoryMapper;
+        this.setmealDishMapper = setmealDishMapper;
+        this.shoppingCartMapper = shoppingCartMapper;
+        this.diningCartItemMapper = diningCartItemMapper;
+        this.orderDetailMapper = orderDetailMapper;
     }
 
     @Override
@@ -93,12 +110,23 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
         if (CollectionUtils.isEmpty(ids)) {
             return;
         }
-        long enabledCount = lambdaQuery()
+        long enabledCount = baseMapper.selectCount(new LambdaQueryWrapper<Dish>()
                 .in(Dish::getId, ids)
-                .eq(Dish::getStatus, 1)
-                .count();
+                .eq(Dish::getStatus, 1));
         if (enabledCount > 0) {
             throw new BusinessException("Enabled dishes cannot be deleted");
+        }
+        if (setmealDishMapper.countByDishIds(ids) > 0) {
+            throw new BusinessException("Dish is referenced by set meal and cannot be deleted");
+        }
+        if (shoppingCartMapper.countByDishIds(ids) > 0) {
+            throw new BusinessException("Dish is referenced by shopping cart and cannot be deleted");
+        }
+        if (diningCartItemMapper.countByDishIds(ids) > 0) {
+            throw new BusinessException("Dish is referenced by dining cart and cannot be deleted");
+        }
+        if (orderDetailMapper.countByDishIds(ids) > 0) {
+            throw new BusinessException("Dish is referenced by order detail and cannot be deleted");
         }
         removeByIds(ids);
         dishFlavorMapper.deleteByDishIds(ids);

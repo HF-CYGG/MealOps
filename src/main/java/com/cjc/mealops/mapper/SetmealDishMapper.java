@@ -11,6 +11,16 @@ public interface SetmealDishMapper extends BaseMapper<SetmealDish> {
     @Select("select * from setmeal_dish where setmeal_id = #{setmealId}")
     List<SetmealDish> selectBySetmealId(@Param("setmealId") Long setmealId);
 
+    @Select("""
+            <script>
+            select count(1) from setmeal_dish where dish_id in
+            <foreach collection="dishIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            </script>
+            """)
+    long countByDishIds(@Param("dishIds") List<Long> dishIds);
+
     @Delete("""
             <script>
             delete from setmeal_dish where setmeal_id in

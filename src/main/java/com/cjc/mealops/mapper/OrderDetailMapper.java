@@ -10,6 +10,16 @@ import org.apache.ibatis.annotations.Select;
 
 public interface OrderDetailMapper extends BaseMapper<OrderDetail> {
     @Select("""
+            <script>
+            select count(1) from order_detail where dish_id in
+            <foreach collection="dishIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            </script>
+            """)
+    long countByDishIds(@Param("dishIds") List<Long> dishIds);
+
+    @Select("""
             select od.name as name, coalesce(sum(od.number), 0) as number
             from order_detail od
             inner join orders o on o.id = od.order_id

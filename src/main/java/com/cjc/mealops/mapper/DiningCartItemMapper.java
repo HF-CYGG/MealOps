@@ -9,6 +9,16 @@ import org.apache.ibatis.annotations.Select;
 
 public interface DiningCartItemMapper extends BaseMapper<DiningCartItem> {
     @Select("""
+            <script>
+            select count(1) from dining_cart_item where dish_id in
+            <foreach collection="dishIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            </script>
+            """)
+    long countByDishIds(@Param("dishIds") List<Long> dishIds);
+
+    @Select("""
             select *
             from dining_cart_item
             where session_id = #{sessionId}
