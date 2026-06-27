@@ -322,7 +322,7 @@ const resetForm = () => {
 
 const handleStatusChange = async (row) => {
   const newStatus = row.status === 1 ? 0 : 1
-  const actionText = newStatus === 1 ? '停售' : '起售'
+  const actionText = newStatus === 1 ? '起售' : '停售'
   
   try {
     await ElMessageBox.confirm(`确定要${actionText}该套餐吗？`, '提示', {
@@ -334,7 +334,7 @@ const handleStatusChange = async (row) => {
     const res = await changeSetmealStatus(newStatus, row.id)
     if (res.code === 1) {
       ElMessage.success(`${actionText}成功`)
-      getList()
+      await getList()
     } else {
       ElMessage.error(res.msg || `${actionText}失败`)
     }

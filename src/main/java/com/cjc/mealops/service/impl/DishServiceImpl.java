@@ -92,7 +92,7 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
         if (status != null && !String.valueOf(status).isBlank()) {
             wrapper.eq(Dish::getStatus, Integer.parseInt(String.valueOf(status)));
         }
-        wrapper.orderByDesc(Dish::getUpdateTime);
+        wrapper.orderByDesc(Dish::getStatus).orderByDesc(Dish::getUpdateTime);
         Page<Dish> dishPage = baseMapper.selectPage(page, wrapper);
         Map<Long, String> categoryNames = categoryNames(dishPage.getRecords());
         Page<DishVO> result = new Page<>(dishPage.getCurrent(), dishPage.getSize(), dishPage.getTotal());
@@ -113,7 +113,7 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
         if (status != null && !String.valueOf(status).isBlank()) {
             wrapper.eq(Dish::getStatus, Integer.parseInt(String.valueOf(status)));
         }
-        wrapper.orderByDesc(Dish::getUpdateTime);
+        wrapper.orderByDesc(Dish::getStatus).orderByDesc(Dish::getUpdateTime);
         return list(wrapper);
     }
 

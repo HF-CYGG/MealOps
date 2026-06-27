@@ -183,6 +183,7 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
         Object number = params == null ? null : params.get("number");
         Object phone = params == null ? null : params.get("phone");
         Object status = params == null ? null : params.get("status");
+        Object payStatus = params == null ? null : params.get("payStatus");
         Object beginTime = params == null ? null : params.get("beginTime");
         Object endTime = params == null ? null : params.get("endTime");
         if (number != null && !String.valueOf(number).isBlank()) {
@@ -194,6 +195,9 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
         if (status != null && !String.valueOf(status).isBlank()) {
             wrapper.eq(Orders::getStatus, Integer.parseInt(String.valueOf(status)));
         }
+        if (payStatus != null && !String.valueOf(payStatus).isBlank()) {
+            wrapper.eq(Orders::getPayStatus, Integer.parseInt(String.valueOf(payStatus)));
+        }
         if (beginTime != null && !String.valueOf(beginTime).isBlank()) {
             wrapper.ge(Orders::getOrderTime, parseDateTime(beginTime));
         }
@@ -202,6 +206,17 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
         }
         wrapper.orderByDesc(Orders::getOrderTime);
         return baseMapper.selectPage(page, wrapper);
+    }
+
+    @Override
+    public Map<String, Long> summary() {
+        return Map.of(
+                "pendingPayment", nonNullCount(baseMapper.countByStatus(Orders.PENDING_PAYMENT)),
+                "toBeConfirmed", nonNullCount(baseMapper.countByStatus(Orders.TO_BE_CONFIRMED)),
+                "preparing", nonNullCount(baseMapper.countByStatus(Orders.CONFIRMED)),
+                "serving", nonNullCount(baseMapper.countByStatus(Orders.DELIVERY_IN_PROGRESS)),
+                "completed", nonNullCount(baseMapper.countByStatus(Orders.COMPLETED)),
+                "cancelled", nonNullCount(baseMapper.countByStatus(Orders.CANCELLED)));
     }
 
     @Override
@@ -299,6 +314,10 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
             throw new BusinessException("Order not found");
         }
         return orders;
+    }
+
+    private long nonNullCount(Long value) {
+        return value == null ? 0L : value;
     }
 
     private OrderDetail toOrderDetail(ShoppingCart cart, Long orderId) {

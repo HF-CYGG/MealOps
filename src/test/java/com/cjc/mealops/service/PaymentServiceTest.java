@@ -15,6 +15,7 @@ import com.cjc.mealops.mapper.OrdersMapper;
 import com.cjc.mealops.mapper.PaymentOrderMapper;
 import com.cjc.mealops.service.impl.PaymentServiceImpl;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -87,6 +88,39 @@ class PaymentServiceTest {
         verify(ordersMapper).updateById(orderCaptor.capture());
         assertThat(orderCaptor.getValue().getPayStatus()).isEqualTo(Orders.PAID);
         assertThat(orderCaptor.getValue().getStatus()).isEqualTo(Orders.TO_BE_CONFIRMED);
+    }
+
+    @Test
+    void confirmExpiredPendingPaymentCancelsOrderAndPayment() {
+        BaseContext.setCurrentId(101L);
+        BaseContext.setCurrentRole("USER");
+        PaymentOrder pending = new PaymentOrder();
+        pending.setId(9L);
+        pending.setOrderId(100L);
+        pending.setAmount(new BigDecimal("56.00"));
+        pending.setStatus(PaymentOrder.PENDING);
+        when(paymentOrderMapper.selectById(9L)).thenReturn(pending);
+
+        Orders order = new Orders();
+        order.setId(100L);
+        order.setUserId(101L);
+        order.setStatus(Orders.PENDING_PAYMENT);
+        order.setPayStatus(Orders.UN_PAID);
+        order.setOrderTime(LocalDateTime.now().minusMinutes(16));
+        when(ordersMapper.selectById(100L)).thenReturn(order);
+
+        PaymentServiceImpl service = new PaymentServiceImpl(paymentOrderMapper, ordersMapper);
+
+        assertThatThrownBy(() -> service.confirm(9L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Payment expired");
+
+        ArgumentCaptor<Orders> orderCaptor = ArgumentCaptor.forClass(Orders.class);
+        verify(ordersMapper).updateById(orderCaptor.capture());
+        assertThat(orderCaptor.getValue().getStatus()).isEqualTo(Orders.CANCELLED);
+        assertThat(orderCaptor.getValue().getCancelReason()).isEqualTo("Payment expired automatically");
+        verify(paymentOrderMapper).updateById(any(PaymentOrder.class));
+        verify(paymentOrderMapper, never()).markPendingPaid(9L, PaymentOrder.PENDING, PaymentOrder.PAID);
     }
 
     @Test

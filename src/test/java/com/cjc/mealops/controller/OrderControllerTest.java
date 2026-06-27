@@ -8,6 +8,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.cjc.mealops.common.BaseContext;
+import com.cjc.mealops.common.BusinessException;
 import com.cjc.mealops.common.R;
 import com.cjc.mealops.dto.OrdersSubmitDTO;
 import com.cjc.mealops.service.OrderService;
@@ -74,5 +76,18 @@ class OrderControllerTest {
         assertThat(response.getCode()).isEqualTo(1);
         assertThat(response.getData()).isSameAs(detail);
         verify(orderService).detail(9001L);
+    }
+
+    @Test
+    void summaryRejectsUserRole() {
+        BaseContext.setCurrentRole("USER");
+        ApiInvokeSupport api = mock(ApiInvokeSupport.class);
+        OrderService orderService = mock(OrderService.class);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new OrderController(api, orderService).summary())
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Permission denied");
+
+        BaseContext.clear();
     }
 }

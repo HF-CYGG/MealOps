@@ -1,5 +1,6 @@
 package com.cjc.mealops.controller;
 
+import com.cjc.mealops.common.AuthUtils;
 import com.cjc.mealops.common.R;
 import com.cjc.mealops.dto.OrdersSubmitDTO;
 import com.cjc.mealops.service.OrderService;
@@ -35,6 +36,12 @@ public class OrderController {
     @GetMapping("/page")
     public R<Object> page(@RequestParam Map<String, String> params) {
         return R.success(api.invoke("orderService", List.of("pageQuery", "page"), api.query(params)));
+    }
+
+    @GetMapping("/summary")
+    public R<Map<String, Long>> summary() {
+        AuthUtils.requireEmployee();
+        return R.success(orderService.summary());
     }
 
     @GetMapping("/history")

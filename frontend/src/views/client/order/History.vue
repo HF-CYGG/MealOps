@@ -55,6 +55,16 @@
 
           <div class="order-footer">
             <el-button @click="handleDetail(order.id)">查看详情</el-button>
+            <el-button
+              v-if="canPayOrder(order)"
+              type="success"
+              plain
+              :loading="payingOrderId === order.id"
+              @click="handlePayOrder(order)"
+            >
+              去支付 {{ remainingPaymentTime(order) }}
+            </el-button>
+            <span v-else-if="isExpiredPendingOrder(order)" class="payment-expired">支付超时</span>
             <el-button type="primary" plain @click="handleRepetition(order.id)">再来一单</el-button>
           </div>
         </el-card>
@@ -114,10 +124,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getHistoryOrders, getOrderDetail, repetitionOrder } from '@/api/clientOrder'
+import {
+  confirmPayment,
+  getHistoryOrders,
+  getOrderDetail,
+  getPaymentByOrder,
+  prepayOrder,
+  repetitionOrder
+} from '@/api/clientOrder'
 
 const router = useRouter()
 
@@ -130,9 +147,21 @@ const total = ref(0)
 const dialogVisible = ref(false)
 const detailLoading = ref(false)
 const orderDetail = ref(null)
+const payingOrderId = ref(null)
+const nowTick = ref(Date.now())
+let countdownTimer = null
 
 onMounted(() => {
   fetchOrders()
+  countdownTimer = window.setInterval(() => {
+    nowTick.value = Date.now()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (countdownTimer) {
+    window.clearInterval(countdownTimer)
+  }
 })
 
 const fetchOrders = async () => {
@@ -184,6 +213,36 @@ const statusClass = (status) => {
   return map[status] || ''
 }
 
+const paymentDeadline = (order) => {
+  if (!order?.orderTime) {
+    return 0
+  }
+  const orderTime = new Date(String(order.orderTime).replace(' ', 'T')).getTime()
+  if (Number.isNaN(orderTime)) {
+    return 0
+  }
+  return orderTime + 15 * 60 * 1000
+}
+
+const paymentRemainingMs = (order) => {
+  return Math.max(0, paymentDeadline(order) - nowTick.value)
+}
+
+const remainingPaymentTime = (order) => {
+  const remaining = paymentRemainingMs(order)
+  const minutes = Math.floor(remaining / 60000)
+  const seconds = Math.floor((remaining % 60000) / 1000)
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+const canPayOrder = (order) => {
+  return order?.status === 1 && order?.payStatus !== 1 && paymentRemainingMs(order) > 0
+}
+
+const isExpiredPendingOrder = (order) => {
+  return order?.status === 1 && order?.payStatus !== 1 && paymentRemainingMs(order) === 0
+}
+
 // 查看详情
 const handleDetail = async (id) => {
   dialogVisible.value = true
@@ -197,6 +256,46 @@ const handleDetail = async (id) => {
     console.error('获取订单详情失败', error)
   } finally {
     detailLoading.value = false
+  }
+}
+
+const handlePayOrder = async (order) => {
+  if (!canPayOrder(order)) {
+    ElMessage.warning('订单已超过支付保留时间')
+    await fetchOrders()
+    return
+  }
+  payingOrderId.value = order.id
+  try {
+    let payment
+    try {
+      const paymentRes = await getPaymentByOrder(order.id)
+      if (paymentRes.code === 1) {
+        payment = paymentRes.data
+      }
+    } catch (error) {
+      const prepayRes = await prepayOrder(order.id)
+      if (prepayRes.code === 1) {
+        payment = prepayRes.data
+      }
+    }
+    const paymentId = payment?.paymentId || payment?.id
+    if (!paymentId) {
+      ElMessage.error('未获取到支付单')
+      return
+    }
+    const res = await confirmPayment(paymentId)
+    if (res.code === 1) {
+      ElMessage.success('支付成功')
+      await fetchOrders()
+    } else {
+      ElMessage.error(res.msg || '支付失败')
+    }
+  } catch (error) {
+    console.error('支付失败', error)
+    await fetchOrders()
+  } finally {
+    payingOrderId.value = null
   }
 }
 
@@ -276,7 +375,13 @@ const handleRepetition = async (id) => {
 .order-footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 10px;
+}
+
+.payment-expired {
+  color: #909399;
+  font-size: 14px;
 }
 
 .pagination-container {

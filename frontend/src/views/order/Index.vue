@@ -35,8 +35,28 @@
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="resetSearch">重置</el-button>
+          <el-switch
+            v-model="autoRefresh"
+            class="auto-refresh-switch"
+            active-text="自动刷新"
+            inactive-text="手动刷新"
+            @change="handleAutoRefreshChange"
+          />
         </el-form-item>
       </el-form>
+    </div>
+
+    <div class="summary-cards">
+      <div
+        v-for="item in summaryCards"
+        :key="item.key"
+        class="summary-card"
+        :class="{ active: searchForm.status === item.status }"
+        @click="handleSummaryClick(item.status)"
+      >
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+      </div>
     </div>
 
     <el-table :data="tableData" v-loading="loading" border style="width: 100%">
@@ -66,6 +86,11 @@
       </el-table-column>
       <el-table-column label="操作" align="center" width="220" fixed="right">
         <template #default="scope">
+          <el-button
+            type="primary"
+            link
+            @click="handleDetail(scope.row)"
+          >详情</el-button>
           <el-button 
             v-if="scope.row.status === 2 && scope.row.payStatus === 1"
             type="primary" 
@@ -151,14 +176,62 @@
         </span>
       </template>
     </el-dialog>
+
+    <el-drawer v-model="detailDrawerVisible" title="订单详情" size="520px">
+      <div v-loading="detailLoading" v-if="orderDetail" class="order-detail">
+        <div class="detail-line">
+          <span>订单号</span>
+          <strong>{{ orderDetail.number }}</strong>
+        </div>
+        <div class="detail-line">
+          <span>订单状态</span>
+          <el-tag :type="getStatusType(orderDetail.status)">
+            {{ getStatusText(orderDetail.status) }}
+          </el-tag>
+        </div>
+        <div class="detail-line">
+          <span>支付状态</span>
+          <el-tag :type="getPayStatusType(orderDetail.payStatus)">
+            {{ getPayStatusText(orderDetail.payStatus) }}
+          </el-tag>
+        </div>
+        <div class="detail-line">
+          <span>联系人</span>
+          <strong>{{ orderDetail.consignee || orderDetail.userName || '-' }}</strong>
+        </div>
+        <div class="detail-line">
+          <span>手机号</span>
+          <strong>{{ orderDetail.phone || '-' }}</strong>
+        </div>
+        <div class="detail-block">
+          <span>地址</span>
+          <p>{{ orderDetail.address || '-' }}</p>
+        </div>
+        <div class="detail-block">
+          <span>备注</span>
+          <p>{{ orderDetail.remark || '无' }}</p>
+        </div>
+        <el-table :data="orderDetail.orderDetailList || []" size="small" border>
+          <el-table-column prop="name" label="商品" />
+          <el-table-column prop="number" label="数量" width="70" align="center" />
+          <el-table-column prop="amount" label="单价" width="90" align="right">
+            <template #default="scope">￥{{ scope.row.amount }}</template>
+          </el-table-column>
+        </el-table>
+        <div class="detail-total">合计：￥{{ orderDetail.amount }}</div>
+      </div>
+      <el-empty v-else-if="!detailLoading" description="暂无订单详情" />
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   getOrderPage, 
+  getOrderSummary,
+  getOrderDetail,
   confirmOrder, 
   rejectionOrder, 
   deliveryOrder, 
@@ -178,10 +251,23 @@ const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const summary = reactive({
+  pendingPayment: 0,
+  toBeConfirmed: 0,
+  preparing: 0,
+  serving: 0,
+  completed: 0,
+  cancelled: 0
+})
+const autoRefresh = ref(true)
+let autoRefreshTimer = null
 
 const rejectDialogVisible = ref(false)
 const cancelDialogVisible = ref(false)
 const submitLoading = ref(false)
+const detailDrawerVisible = ref(false)
+const detailLoading = ref(false)
+const orderDetail = ref(null)
 
 const rejectFormRef = ref(null)
 const rejectForm = reactive({
@@ -238,6 +324,15 @@ const getPayStatusType = (payStatus) => {
   return payStatus === 1 ? 'success' : 'warning'
 }
 
+const summaryCards = computed(() => [
+  { key: 'pendingPayment', label: '待付款', status: 1, value: summary.pendingPayment },
+  { key: 'toBeConfirmed', label: '待接单', status: 2, value: summary.toBeConfirmed },
+  { key: 'preparing', label: '备餐中', status: 3, value: summary.preparing },
+  { key: 'serving', label: '出餐中', status: 4, value: summary.serving },
+  { key: 'completed', label: '已完成', status: 5, value: summary.completed },
+  { key: 'cancelled', label: '已取消', status: 6, value: summary.cancelled }
+])
+
 const getList = async () => {
   loading.value = true
   try {
@@ -268,9 +363,24 @@ const getList = async () => {
   }
 }
 
+const fetchSummary = async () => {
+  try {
+    const res = await getOrderSummary()
+    if (res.code === 1 && res.data) {
+      Object.assign(summary, res.data)
+    }
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+const refreshOrders = async () => {
+  await Promise.all([getList(), fetchSummary()])
+}
+
 const handleSearch = () => {
   page.value = 1
-  getList()
+  refreshOrders()
 }
 
 const resetSearch = () => {
@@ -283,12 +393,55 @@ const resetSearch = () => {
 
 const handleSizeChange = (val) => {
   pageSize.value = val
-  getList()
+  refreshOrders()
 }
 
 const handleCurrentChange = (val) => {
   page.value = val
-  getList()
+  refreshOrders()
+}
+
+const handleSummaryClick = (status) => {
+  searchForm.status = status
+  handleSearch()
+}
+
+const startAutoRefresh = () => {
+  stopAutoRefresh()
+  autoRefreshTimer = window.setInterval(() => {
+    refreshOrders()
+  }, 30000)
+}
+
+const stopAutoRefresh = () => {
+  if (autoRefreshTimer) {
+    window.clearInterval(autoRefreshTimer)
+    autoRefreshTimer = null
+  }
+}
+
+const handleAutoRefreshChange = (enabled) => {
+  if (enabled) {
+    startAutoRefresh()
+  } else {
+    stopAutoRefresh()
+  }
+}
+
+const handleDetail = async (row) => {
+  detailDrawerVisible.value = true
+  detailLoading.value = true
+  orderDetail.value = null
+  try {
+    const res = await getOrderDetail(row.id)
+    if (res.code === 1) {
+      orderDetail.value = res.data
+    }
+  } catch (error) {
+    console.error(error)
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 // 接单
@@ -302,7 +455,7 @@ const handleConfirm = async (row) => {
     const res = await confirmOrder({ id: row.id })
     if (res.code === 1) {
       ElMessage.success('接单成功')
-      getList()
+      refreshOrders()
     } else {
       ElMessage.error(res.msg || '接单失败')
     }
@@ -333,7 +486,7 @@ const submitRejection = async () => {
         if (res.code === 1) {
           ElMessage.success('拒单成功')
           rejectDialogVisible.value = false
-          getList()
+          refreshOrders()
         } else {
           ElMessage.error(res.msg || '拒单失败')
         }
@@ -357,7 +510,7 @@ const handleDelivery = async (row) => {
     const res = await deliveryOrder(row.id)
     if (res.code === 1) {
       ElMessage.success('出餐成功')
-      getList()
+      refreshOrders()
     } else {
       ElMessage.error(res.msg || '出餐失败')
     }
@@ -379,7 +532,7 @@ const handleComplete = async (row) => {
     const res = await completeOrder(row.id)
     if (res.code === 1) {
       ElMessage.success('操作成功')
-      getList()
+      refreshOrders()
     } else {
       ElMessage.error(res.msg || '操作失败')
     }
@@ -410,7 +563,7 @@ const submitCancel = async () => {
         if (res.code === 1) {
           ElMessage.success('取消订单成功')
           cancelDialogVisible.value = false
-          getList()
+          refreshOrders()
         } else {
           ElMessage.error(res.msg || '取消订单失败')
         }
@@ -424,10 +577,92 @@ const submitCancel = async () => {
 }
 
 onMounted(() => {
-  getList()
+  refreshOrders()
+  if (autoRefresh.value) {
+    startAutoRefresh()
+  }
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 </script>
 
 <style scoped>
 /* 页面特有样式（通用样式已在全局 style.css 中定义） */
+.auto-refresh-switch {
+  margin-left: 12px;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(110px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.summary-card {
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.summary-card.active {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+
+.summary-card span {
+  color: #606266;
+  font-size: 13px;
+}
+
+.summary-card strong {
+  color: #303133;
+  font-size: 24px;
+}
+
+.order-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detail-line,
+.detail-block {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: #606266;
+}
+
+.detail-block {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-block p {
+  margin: 0;
+  color: #303133;
+  line-height: 1.6;
+}
+
+.detail-total {
+  text-align: right;
+  color: #f56c6c;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 </style>

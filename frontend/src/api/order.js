@@ -12,6 +12,20 @@ export const getOrderPage = (params) => {
   })
 }
 
+export const getOrderSummary = () => {
+  return request({
+    url: '/order/summary',
+    method: 'get'
+  })
+}
+
+export const getOrderDetail = (id) => {
+  return request({
+    url: `/order/${id}`,
+    method: 'get'
+  })
+}
+
 // 取消订单
 export const cancelOrder = (data) => {
   return request({

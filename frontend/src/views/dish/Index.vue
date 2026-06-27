@@ -378,7 +378,7 @@ const handleStatusChange = async (row) => {
     const res = await changeDishStatus(newStatus, row.id)
     if (res.code === 1) {
       ElMessage.success(`${actionText}成功`)
-      getList()
+      await getList()
     } else {
       ElMessage.error(res.msg || `${actionText}失败`)
     }

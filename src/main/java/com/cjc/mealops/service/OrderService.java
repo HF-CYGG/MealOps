@@ -19,6 +19,8 @@ public interface OrderService extends IService<Orders> {
 
     Page<Orders> pageQuery(Map<String, Object> params);
 
+    Map<String, Long> summary();
+
     Object pageByCurrentUser(Map<String, Object> params);
 
     void updateStatus(Long id, Integer status);

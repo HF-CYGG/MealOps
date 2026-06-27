@@ -132,6 +132,26 @@ class OrderServiceImplTest {
         verify(ordersMapper).selectPage(any(Page.class), any(LambdaQueryWrapper.class));
     }
 
+    @Test
+    void summaryReturnsCountsForEveryOrderStatus() {
+        OrderServiceImpl service = serviceWithOrder(ownedOrder());
+        when(ordersMapper.countByStatus(Orders.PENDING_PAYMENT)).thenReturn(2L);
+        when(ordersMapper.countByStatus(Orders.TO_BE_CONFIRMED)).thenReturn(3L);
+        when(ordersMapper.countByStatus(Orders.CONFIRMED)).thenReturn(4L);
+        when(ordersMapper.countByStatus(Orders.DELIVERY_IN_PROGRESS)).thenReturn(5L);
+        when(ordersMapper.countByStatus(Orders.COMPLETED)).thenReturn(6L);
+        when(ordersMapper.countByStatus(Orders.CANCELLED)).thenReturn(7L);
+
+        Map<String, Long> result = service.summary();
+
+        assertThat(result).containsEntry("pendingPayment", 2L)
+                .containsEntry("toBeConfirmed", 3L)
+                .containsEntry("preparing", 4L)
+                .containsEntry("serving", 5L)
+                .containsEntry("completed", 6L)
+                .containsEntry("cancelled", 7L);
+    }
+
     private Orders ownedOrder() {
         Orders order = new Orders();
         order.setId(9001L);

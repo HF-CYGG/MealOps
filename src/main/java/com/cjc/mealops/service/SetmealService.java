@@ -1,6 +1,7 @@
 package com.cjc.mealops.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cjc.mealops.dto.SetmealDTO;
 import com.cjc.mealops.entity.Setmeal;
 import com.cjc.mealops.vo.SetmealVO;
@@ -13,6 +14,8 @@ public interface SetmealService extends IService<Setmeal> {
     SetmealVO getWithDish(Long id);
 
     List<Setmeal> listWithDish(Map<String, Object> params);
+
+    Page<SetmealVO> pageQuery(Map<String, Object> params);
 
     void updateWithDish(SetmealDTO setmealDTO);
 

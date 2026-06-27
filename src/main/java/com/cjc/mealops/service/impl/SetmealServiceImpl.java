@@ -1,6 +1,7 @@
 package com.cjc.mealops.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cjc.mealops.common.BaseContext;
 import com.cjc.mealops.common.BusinessException;
@@ -14,8 +15,12 @@ import com.cjc.mealops.mapper.SetmealMapper;
 import com.cjc.mealops.service.SetmealService;
 import com.cjc.mealops.vo.SetmealVO;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,8 +73,34 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         if (status != null && !String.valueOf(status).isBlank()) {
             wrapper.eq(Setmeal::getStatus, Integer.parseInt(String.valueOf(status)));
         }
-        wrapper.orderByDesc(Setmeal::getUpdateTime);
+        wrapper.orderByDesc(Setmeal::getStatus).orderByDesc(Setmeal::getUpdateTime);
         return list(wrapper);
+    }
+
+    @Override
+    public Page<SetmealVO> pageQuery(Map<String, Object> params) {
+        Page<Setmeal> page = new Page<>(longParam(params, "page", 1L), longParam(params, "pageSize", 10L));
+        LambdaQueryWrapper<Setmeal> wrapper = new LambdaQueryWrapper<>();
+        Object name = params == null ? null : params.get("name");
+        Object categoryId = params == null ? null : params.get("categoryId");
+        Object status = params == null ? null : params.get("status");
+        if (name != null && !String.valueOf(name).isBlank()) {
+            wrapper.like(Setmeal::getName, String.valueOf(name).trim());
+        }
+        if (categoryId != null && !String.valueOf(categoryId).isBlank()) {
+            wrapper.eq(Setmeal::getCategoryId, Long.parseLong(String.valueOf(categoryId)));
+        }
+        if (status != null && !String.valueOf(status).isBlank()) {
+            wrapper.eq(Setmeal::getStatus, Integer.parseInt(String.valueOf(status)));
+        }
+        wrapper.orderByDesc(Setmeal::getStatus).orderByDesc(Setmeal::getUpdateTime);
+        Page<Setmeal> setmealPage = baseMapper.selectPage(page, wrapper);
+        Map<Long, String> categoryNames = categoryNames(setmealPage.getRecords());
+        Page<SetmealVO> result = new Page<>(setmealPage.getCurrent(), setmealPage.getSize(), setmealPage.getTotal());
+        result.setRecords(setmealPage.getRecords().stream()
+                .map(setmeal -> toSetmealVO(setmeal, categoryNames.get(setmeal.getCategoryId())))
+                .toList());
+        return result;
     }
 
     @Override
@@ -153,5 +184,32 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
     private Long currentUserId() {
         Long currentId = BaseContext.getCurrentId();
         return currentId == null ? 0L : currentId;
+    }
+
+    private long longParam(Map<String, Object> params, String name, long defaultValue) {
+        if (params == null || params.get(name) == null || String.valueOf(params.get(name)).isBlank()) {
+            return defaultValue;
+        }
+        return Long.parseLong(String.valueOf(params.get(name)));
+    }
+
+    private Map<Long, String> categoryNames(Collection<Setmeal> setmeals) {
+        List<Long> categoryIds = setmeals.stream()
+                .map(Setmeal::getCategoryId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (categoryIds.isEmpty()) {
+            return Map.of();
+        }
+        return categoryMapper.selectBatchIds(categoryIds).stream()
+                .collect(Collectors.toMap(Category::getId, Category::getName, (left, right) -> left, HashMap::new));
+    }
+
+    private SetmealVO toSetmealVO(Setmeal setmeal, String categoryName) {
+        SetmealVO vo = new SetmealVO();
+        BeanUtils.copyProperties(setmeal, vo);
+        vo.setCategoryName(categoryName);
+        return vo;
     }
 }

@@ -15,6 +15,7 @@ import com.cjc.mealops.service.PaymentService;
 import com.cjc.mealops.vo.PaymentPrepayVO;
 import java.time.LocalDateTime;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +23,21 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentServiceImpl extends ServiceImpl<PaymentOrderMapper, PaymentOrder> implements PaymentService {
     private final PaymentOrderMapper paymentOrderMapper;
     private final OrdersMapper ordersMapper;
+    private final OrderExpirationService orderExpirationService;
+
+    @Autowired
+    public PaymentServiceImpl(PaymentOrderMapper paymentOrderMapper,
+                              OrdersMapper ordersMapper,
+                              OrderExpirationService orderExpirationService) {
+        this.paymentOrderMapper = paymentOrderMapper;
+        this.ordersMapper = ordersMapper;
+        this.orderExpirationService = orderExpirationService;
+    }
 
     public PaymentServiceImpl(PaymentOrderMapper paymentOrderMapper, OrdersMapper ordersMapper) {
         this.paymentOrderMapper = paymentOrderMapper;
         this.ordersMapper = ordersMapper;
+        this.orderExpirationService = new OrderExpirationService(ordersMapper, paymentOrderMapper, null, null);
     }
 
     @Override
@@ -37,6 +49,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentOrderMapper, PaymentO
         }
         requireOrderOwner(order);
         PaymentOrder existing = paymentOrderMapper.selectLatestByOrderId(orderId);
+        if (orderExpirationService.isExpired(order)) {
+            orderExpirationService.expireOrder(order, existing);
+            throw new BusinessException("Payment expired");
+        }
         if (existing != null) {
             return toPrepayVO(existing);
         }
@@ -67,6 +83,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentOrderMapper, PaymentO
             throw new BusinessException("Order not found");
         }
         requireOrderOwner(order);
+        if (orderExpirationService.isExpired(order)) {
+            orderExpirationService.expireOrder(order, payment);
+            throw new BusinessException("Payment expired");
+        }
         return payment;
     }
 
@@ -84,6 +104,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentOrderMapper, PaymentO
         requireOrderOwner(order);
         if (PaymentOrder.PAID == payment.getStatus()) {
             return payment;
+        }
+        if (orderExpirationService.isExpired(order)) {
+            orderExpirationService.expireOrder(order, payment);
+            throw new BusinessException("Payment expired");
         }
         if (!Integer.valueOf(PaymentOrder.PENDING).equals(payment.getStatus())) {
             throw new BusinessException("Payment is not pending");

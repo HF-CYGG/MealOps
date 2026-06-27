@@ -18,4 +18,12 @@ public interface DishMapper extends BaseMapper<Dish> {
               and stock >= #{number}
             """)
     int deductStock(@Param("dishId") Long dishId, @Param("number") Integer number);
+
+    @Update("""
+            update dish
+            set stock = stock + #{number},
+                version = version + 1
+            where id = #{dishId}
+            """)
+    int restoreStock(@Param("dishId") Long dishId, @Param("number") Integer number);
 }

@@ -30,7 +30,7 @@ public class SetmealController {
 
     @GetMapping("/page")
     public R<Object> page(@RequestParam Map<String, String> params) {
-        return R.success(api.invoke("setmealService", List.of("page", "pageQuery"), api.query(params)));
+        return R.success(api.invoke("setmealService", List.of("pageQuery", "page"), api.query(params)));
     }
 
     @GetMapping("/list")
