@@ -77,7 +77,9 @@ public class OrderExpirationService {
                 || !Integer.valueOf(Orders.UN_PAID).equals(order.getPayStatus())) {
             return false;
         }
-        restoreDishStock(order.getId());
+        if (Orders.TYPE_DINE_IN.equals(order.getOrderType())) {
+            restoreDishStock(order.getId());
+        }
         LocalDateTime now = LocalDateTime.now();
         order.setStatus(Orders.CANCELLED);
         order.setCancelReason(EXPIRED_CANCEL_REASON);

@@ -11,14 +11,11 @@ import com.cjc.mealops.dto.OrdersSubmitDTO;
 import com.cjc.mealops.entity.AddressBook;
 import com.cjc.mealops.entity.OrderDetail;
 import com.cjc.mealops.entity.Orders;
-import com.cjc.mealops.entity.SetmealDish;
 import com.cjc.mealops.entity.ShoppingCart;
 import com.cjc.mealops.entity.User;
 import com.cjc.mealops.mapper.AddressBookMapper;
-import com.cjc.mealops.mapper.DishMapper;
 import com.cjc.mealops.mapper.OrderDetailMapper;
 import com.cjc.mealops.mapper.OrdersMapper;
-import com.cjc.mealops.mapper.SetmealDishMapper;
 import com.cjc.mealops.mapper.UserMapper;
 import com.cjc.mealops.service.OrderCalculator;
 import com.cjc.mealops.service.OrderService;
@@ -43,23 +40,17 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
     private final AddressBookMapper addressBookMapper;
     private final UserMapper userMapper;
     private final OrderDetailMapper orderDetailMapper;
-    private final DishMapper dishMapper;
-    private final SetmealDishMapper setmealDishMapper;
     private final OrderCalculator orderCalculator;
 
     public OrderServiceImpl(ShoppingCartService shoppingCartService,
                             AddressBookMapper addressBookMapper,
                             UserMapper userMapper,
                             OrderDetailMapper orderDetailMapper,
-                            DishMapper dishMapper,
-                            SetmealDishMapper setmealDishMapper,
                             OrderCalculator orderCalculator) {
         this.shoppingCartService = shoppingCartService;
         this.addressBookMapper = addressBookMapper;
         this.userMapper = userMapper;
         this.orderDetailMapper = orderDetailMapper;
-        this.dishMapper = dishMapper;
-        this.setmealDishMapper = setmealDishMapper;
         this.orderCalculator = orderCalculator;
     }
 
@@ -76,8 +67,6 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
         if (CollectionUtils.isEmpty(carts)) {
             throw new BusinessException("Shopping cart is empty");
         }
-        deductStock(carts);
-
         List<CartItem> cartItems = carts.stream()
                 .map(item -> new CartItem(item.getDishId(), item.getSetmealId(),
                         item.getName(), item.getAmount(), item.getNumber()))
@@ -115,30 +104,6 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
         }
         shoppingCartService.clean();
         return new OrderSubmitVO(orders.getId(), orders.getNumber(), orders.getAmount(), orders.getOrderTime());
-    }
-
-    private void deductStock(List<ShoppingCart> carts) {
-        for (ShoppingCart cart : carts) {
-            if (cart.getDishId() != null) {
-                deductDishStock(cart.getDishId(), cart.getNumber());
-                continue;
-            }
-            if (cart.getSetmealId() != null) {
-                List<SetmealDish> dishes = setmealDishMapper.selectBySetmealId(cart.getSetmealId());
-                if (CollectionUtils.isEmpty(dishes)) {
-                    throw new BusinessException("Setmeal dishes are empty");
-                }
-                for (SetmealDish item : dishes) {
-                    deductDishStock(item.getDishId(), item.getCopies() * cart.getNumber());
-                }
-            }
-        }
-    }
-
-    private void deductDishStock(Long dishId, Integer number) {
-        if (dishMapper.deductStock(dishId, number) == 0) {
-            throw new BusinessException("Dish stock is insufficient");
-        }
     }
 
     @Override

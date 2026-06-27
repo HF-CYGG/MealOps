@@ -7,37 +7,56 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cjc.mealops.common.AuthUtils;
 import com.cjc.mealops.common.BaseContext;
 import com.cjc.mealops.common.BusinessException;
+import com.cjc.mealops.entity.OrderDetail;
 import com.cjc.mealops.entity.Orders;
 import com.cjc.mealops.entity.PaymentOrder;
+import com.cjc.mealops.entity.SetmealDish;
+import com.cjc.mealops.mapper.DishMapper;
+import com.cjc.mealops.mapper.OrderDetailMapper;
 import com.cjc.mealops.mapper.OrdersMapper;
 import com.cjc.mealops.mapper.PaymentOrderMapper;
+import com.cjc.mealops.mapper.SetmealDishMapper;
 import com.cjc.mealops.service.PaymentService;
 import com.cjc.mealops.vo.PaymentPrepayVO;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @Service
 public class PaymentServiceImpl extends ServiceImpl<PaymentOrderMapper, PaymentOrder> implements PaymentService {
     private final PaymentOrderMapper paymentOrderMapper;
     private final OrdersMapper ordersMapper;
     private final OrderExpirationService orderExpirationService;
+    private final OrderDetailMapper orderDetailMapper;
+    private final DishMapper dishMapper;
+    private final SetmealDishMapper setmealDishMapper;
 
     @Autowired
     public PaymentServiceImpl(PaymentOrderMapper paymentOrderMapper,
                               OrdersMapper ordersMapper,
-                              OrderExpirationService orderExpirationService) {
+                              OrderExpirationService orderExpirationService,
+                              OrderDetailMapper orderDetailMapper,
+                              DishMapper dishMapper,
+                              SetmealDishMapper setmealDishMapper) {
         this.paymentOrderMapper = paymentOrderMapper;
         this.ordersMapper = ordersMapper;
         this.orderExpirationService = orderExpirationService;
+        this.orderDetailMapper = orderDetailMapper;
+        this.dishMapper = dishMapper;
+        this.setmealDishMapper = setmealDishMapper;
     }
 
     public PaymentServiceImpl(PaymentOrderMapper paymentOrderMapper, OrdersMapper ordersMapper) {
         this.paymentOrderMapper = paymentOrderMapper;
         this.ordersMapper = ordersMapper;
         this.orderExpirationService = new OrderExpirationService(ordersMapper, paymentOrderMapper, null, null);
+        this.orderDetailMapper = null;
+        this.dishMapper = null;
+        this.setmealDishMapper = null;
     }
 
     @Override
@@ -113,7 +132,6 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentOrderMapper, PaymentO
             throw new BusinessException("Payment is not pending");
         }
 
-        LocalDateTime now = LocalDateTime.now();
         if (paymentOrderMapper.markPendingPaid(paymentId, PaymentOrder.PENDING, PaymentOrder.PAID) == 0) {
             PaymentOrder latest = paymentOrderMapper.selectById(paymentId);
             if (latest != null && PaymentOrder.PAID == latest.getStatus()) {
@@ -122,6 +140,8 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentOrderMapper, PaymentO
             throw new BusinessException("Payment is not pending");
         }
 
+        LocalDateTime now = LocalDateTime.now();
+        deductStock(order.getId());
         order.setPayStatus(Orders.PAID);
         order.setCheckoutTime(now);
         if (Orders.PENDING_PAYMENT == order.getStatus()) {
@@ -156,6 +176,53 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentOrderMapper, PaymentO
             return defaultValue;
         }
         return Long.parseLong(String.valueOf(params.get(name)));
+    }
+
+    private void deductStock(Long orderId) {
+        if (orderDetailMapper == null || dishMapper == null || setmealDishMapper == null) {
+            return;
+        }
+        List<OrderDetail> details = orderDetailMapper.selectList(new LambdaQueryWrapper<OrderDetail>()
+                .eq(OrderDetail::getOrderId, orderId));
+        if (CollectionUtils.isEmpty(details)) {
+            throw new BusinessException("Order details are empty");
+        }
+        for (OrderDetail detail : details) {
+            int number = positiveNumber(detail.getNumber());
+            if (number == 0) {
+                continue;
+            }
+            if (detail.getDishId() != null) {
+                deductDishStock(detail.getDishId(), number);
+                continue;
+            }
+            if (detail.getSetmealId() != null) {
+                deductSetmealStock(detail.getSetmealId(), number);
+            }
+        }
+    }
+
+    private void deductSetmealStock(Long setmealId, int number) {
+        List<SetmealDish> dishes = setmealDishMapper.selectBySetmealId(setmealId);
+        if (CollectionUtils.isEmpty(dishes)) {
+            throw new BusinessException("Setmeal dishes are empty");
+        }
+        for (SetmealDish item : dishes) {
+            int copies = positiveNumber(item.getCopies());
+            if (copies > 0) {
+                deductDishStock(item.getDishId(), copies * number);
+            }
+        }
+    }
+
+    private void deductDishStock(Long dishId, Integer number) {
+        if (dishMapper.deductStock(dishId, number) == 0) {
+            throw new BusinessException("Dish stock is insufficient");
+        }
+    }
+
+    private int positiveNumber(Integer number) {
+        return number == null || number <= 0 ? 0 : number;
     }
 
     private void requireOrderOwner(Orders order) {

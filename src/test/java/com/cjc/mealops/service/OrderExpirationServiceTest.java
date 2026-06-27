@@ -3,6 +3,7 @@ package com.cjc.mealops.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -32,6 +33,7 @@ class OrderExpirationServiceTest {
         order.setStatus(Orders.PENDING_PAYMENT);
         order.setPayStatus(Orders.UN_PAID);
         order.setOrderTime(LocalDateTime.now().minusMinutes(16));
+        order.setOrderType(Orders.TYPE_DINE_IN);
         when(ordersMapper.selectList(any())).thenReturn(List.of(order));
 
         PaymentOrder payment = new PaymentOrder();
@@ -57,5 +59,36 @@ class OrderExpirationServiceTest {
         assertThat(orderCaptor.getValue().getStatus()).isEqualTo(Orders.CANCELLED);
         verify(paymentOrderMapper).updateById(any(PaymentOrder.class));
         verify(dishMapper).restoreStock(300L, 2);
+    }
+
+    @Test
+    void expireTakeoutOrderDoesNotRestoreDishStock() {
+        OrdersMapper ordersMapper = mock(OrdersMapper.class);
+        PaymentOrderMapper paymentOrderMapper = mock(PaymentOrderMapper.class);
+        OrderDetailMapper orderDetailMapper = mock(OrderDetailMapper.class);
+        DishMapper dishMapper = mock(DishMapper.class);
+
+        Orders order = new Orders();
+        order.setId(100L);
+        order.setStatus(Orders.PENDING_PAYMENT);
+        order.setPayStatus(Orders.UN_PAID);
+        order.setOrderTime(LocalDateTime.now().minusMinutes(16));
+        order.setOrderType(Orders.TYPE_TAKEOUT);
+
+        PaymentOrder payment = new PaymentOrder();
+        payment.setId(200L);
+        payment.setOrderId(100L);
+        payment.setStatus(PaymentOrder.PENDING);
+
+        OrderExpirationService service = new OrderExpirationService(
+                ordersMapper, paymentOrderMapper, orderDetailMapper, dishMapper);
+
+        boolean expired = service.expireOrder(order, payment);
+
+        assertThat(expired).isTrue();
+        verify(ordersMapper).updateById(any(Orders.class));
+        verify(paymentOrderMapper).updateById(any(PaymentOrder.class));
+        verify(orderDetailMapper, never()).selectList(any());
+        verify(dishMapper, never()).restoreStock(any(), any());
     }
 }

@@ -3,23 +3,31 @@ package com.cjc.mealops.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.cjc.mealops.common.BaseContext;
 import com.cjc.mealops.common.BusinessException;
+import com.cjc.mealops.entity.OrderDetail;
 import com.cjc.mealops.entity.Orders;
 import com.cjc.mealops.entity.PaymentOrder;
+import com.cjc.mealops.mapper.DishMapper;
+import com.cjc.mealops.mapper.OrderDetailMapper;
 import com.cjc.mealops.mapper.OrdersMapper;
 import com.cjc.mealops.mapper.PaymentOrderMapper;
+import com.cjc.mealops.mapper.SetmealDishMapper;
+import com.cjc.mealops.service.impl.OrderExpirationService;
 import com.cjc.mealops.service.impl.PaymentServiceImpl;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -29,6 +37,12 @@ class PaymentServiceTest {
     private PaymentOrderMapper paymentOrderMapper;
     @Mock
     private OrdersMapper ordersMapper;
+    @Mock
+    private OrderDetailMapper orderDetailMapper;
+    @Mock
+    private DishMapper dishMapper;
+    @Mock
+    private SetmealDishMapper setmealDishMapper;
 
     @AfterEach
     void clearContext() {
@@ -88,6 +102,85 @@ class PaymentServiceTest {
         verify(ordersMapper).updateById(orderCaptor.capture());
         assertThat(orderCaptor.getValue().getPayStatus()).isEqualTo(Orders.PAID);
         assertThat(orderCaptor.getValue().getStatus()).isEqualTo(Orders.TO_BE_CONFIRMED);
+    }
+
+    @Test
+    void confirmPendingPaymentDeductsStockAfterClaimingPendingPayment() {
+        BaseContext.setCurrentId(101L);
+        BaseContext.setCurrentRole("USER");
+        PaymentOrder pending = new PaymentOrder();
+        pending.setId(9L);
+        pending.setOrderId(100L);
+        pending.setAmount(new BigDecimal("56.00"));
+        pending.setStatus(PaymentOrder.PENDING);
+        when(paymentOrderMapper.selectById(9L)).thenReturn(pending);
+
+        Orders order = new Orders();
+        order.setId(100L);
+        order.setUserId(101L);
+        order.setStatus(Orders.PENDING_PAYMENT);
+        order.setPayStatus(Orders.UN_PAID);
+        order.setOrderTime(LocalDateTime.now());
+        order.setOrderType(Orders.TYPE_TAKEOUT);
+        when(ordersMapper.selectById(100L)).thenReturn(order);
+
+        OrderDetail detail = new OrderDetail();
+        detail.setOrderId(100L);
+        detail.setDishId(3001L);
+        detail.setNumber(2);
+        when(orderDetailMapper.selectList(any())).thenReturn(List.of(detail));
+        when(dishMapper.deductStock(3001L, 2)).thenReturn(1);
+        when(paymentOrderMapper.markPendingPaid(9L, PaymentOrder.PENDING, PaymentOrder.PAID)).thenReturn(1);
+
+        PaymentServiceImpl service = new PaymentServiceImpl(paymentOrderMapper, ordersMapper,
+                new OrderExpirationService(ordersMapper, paymentOrderMapper, null, null),
+                orderDetailMapper, dishMapper, setmealDishMapper);
+
+        service.confirm(9L);
+
+        InOrder inOrder = inOrder(paymentOrderMapper, dishMapper, ordersMapper);
+        inOrder.verify(paymentOrderMapper).markPendingPaid(9L, PaymentOrder.PENDING, PaymentOrder.PAID);
+        inOrder.verify(dishMapper).deductStock(3001L, 2);
+        inOrder.verify(ordersMapper).updateById(any(Orders.class));
+    }
+
+    @Test
+    void confirmPendingPaymentDoesNotUpdateOrderWhenStockIsInsufficient() {
+        BaseContext.setCurrentId(101L);
+        BaseContext.setCurrentRole("USER");
+        PaymentOrder pending = new PaymentOrder();
+        pending.setId(9L);
+        pending.setOrderId(100L);
+        pending.setAmount(new BigDecimal("56.00"));
+        pending.setStatus(PaymentOrder.PENDING);
+        when(paymentOrderMapper.selectById(9L)).thenReturn(pending);
+
+        Orders order = new Orders();
+        order.setId(100L);
+        order.setUserId(101L);
+        order.setStatus(Orders.PENDING_PAYMENT);
+        order.setPayStatus(Orders.UN_PAID);
+        order.setOrderTime(LocalDateTime.now());
+        order.setOrderType(Orders.TYPE_TAKEOUT);
+        when(ordersMapper.selectById(100L)).thenReturn(order);
+
+        OrderDetail detail = new OrderDetail();
+        detail.setOrderId(100L);
+        detail.setDishId(3001L);
+        detail.setNumber(2);
+        when(orderDetailMapper.selectList(any())).thenReturn(List.of(detail));
+        when(dishMapper.deductStock(3001L, 2)).thenReturn(0);
+        when(paymentOrderMapper.markPendingPaid(9L, PaymentOrder.PENDING, PaymentOrder.PAID)).thenReturn(1);
+
+        PaymentServiceImpl service = new PaymentServiceImpl(paymentOrderMapper, ordersMapper,
+                new OrderExpirationService(ordersMapper, paymentOrderMapper, null, null),
+                orderDetailMapper, dishMapper, setmealDishMapper);
+
+        assertThatThrownBy(() -> service.confirm(9L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Dish stock is insufficient");
+        verify(paymentOrderMapper).markPendingPaid(9L, PaymentOrder.PENDING, PaymentOrder.PAID);
+        verify(ordersMapper, never()).updateById(any(Orders.class));
     }
 
     @Test

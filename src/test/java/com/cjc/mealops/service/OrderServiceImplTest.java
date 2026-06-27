@@ -12,15 +12,18 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cjc.mealops.common.BaseContext;
 import com.cjc.mealops.common.BusinessException;
+import com.cjc.mealops.dto.OrdersSubmitDTO;
+import com.cjc.mealops.entity.AddressBook;
 import com.cjc.mealops.entity.OrderDetail;
 import com.cjc.mealops.entity.Orders;
+import com.cjc.mealops.entity.ShoppingCart;
+import com.cjc.mealops.entity.User;
 import com.cjc.mealops.mapper.AddressBookMapper;
-import com.cjc.mealops.mapper.DishMapper;
 import com.cjc.mealops.mapper.OrderDetailMapper;
 import com.cjc.mealops.mapper.OrdersMapper;
-import com.cjc.mealops.mapper.SetmealDishMapper;
 import com.cjc.mealops.mapper.UserMapper;
 import com.cjc.mealops.service.impl.OrderServiceImpl;
+import com.cjc.mealops.vo.OrderSubmitVO;
 import com.cjc.mealops.vo.OrderVO;
 import java.math.BigDecimal;
 import java.util.List;
@@ -152,6 +155,57 @@ class OrderServiceImplTest {
                 .containsEntry("cancelled", 7L);
     }
 
+    @Test
+    void submitPendingPaymentOrderDoesNotDeductStockBeforePayment() {
+        BaseContext.setCurrentId(101L);
+        ShoppingCartService shoppingCartService = mock(ShoppingCartService.class);
+        AddressBookMapper addressBookMapper = mock(AddressBookMapper.class);
+        UserMapper userMapper = mock(UserMapper.class);
+        OrdersMapper ordersMapper = mock(OrdersMapper.class);
+        OrderDetailMapper orderDetailMapper = mock(OrderDetailMapper.class);
+
+        AddressBook addressBook = new AddressBook();
+        addressBook.setId(7001L);
+        addressBook.setUserId(101L);
+        addressBook.setPhone("13900000000");
+        addressBook.setConsignee("Yan");
+        addressBook.setProvinceName("山东省");
+        addressBook.setCityName("泰安市");
+        addressBook.setDistrictName("岱岳区");
+        addressBook.setDetail("泰山科技学院");
+        when(addressBookMapper.selectById(7001L)).thenReturn(addressBook);
+
+        ShoppingCart cart = new ShoppingCart();
+        cart.setDishId(3001L);
+        cart.setName("宫保鸡丁");
+        cart.setAmount(BigDecimal.valueOf(28));
+        cart.setNumber(1);
+        when(shoppingCartService.listCurrentUserCart()).thenReturn(List.of(cart));
+
+        User user = new User();
+        user.setId(101L);
+        user.setName("Yan");
+        when(userMapper.selectById(101L)).thenReturn(user);
+
+        OrderServiceImpl service = new OrderServiceImpl(
+                shoppingCartService,
+                addressBookMapper,
+                userMapper,
+                orderDetailMapper,
+                new OrderCalculator());
+        ReflectionTestUtils.setField(service, "baseMapper", ordersMapper);
+
+        OrdersSubmitDTO dto = new OrdersSubmitDTO();
+        dto.setAddressBookId(7001L);
+        dto.setPayMethod(1);
+
+        OrderSubmitVO result = service.submit(dto);
+
+        assertThat(result.getOrderAmount()).isEqualByComparingTo("28");
+        verify(orderDetailMapper).insert(any(OrderDetail.class));
+        verify(shoppingCartService).clean();
+    }
+
     private Orders ownedOrder() {
         Orders order = new Orders();
         order.setId(9001L);
@@ -171,8 +225,6 @@ class OrderServiceImplTest {
                 mock(AddressBookMapper.class),
                 mock(UserMapper.class),
                 orderDetailMapper,
-                mock(DishMapper.class),
-                mock(SetmealDishMapper.class),
                 mock(OrderCalculator.class));
         ReflectionTestUtils.setField(service, "baseMapper", ordersMapper);
         return service;
